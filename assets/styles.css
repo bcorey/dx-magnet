@@ -57,6 +57,7 @@ body {
     padding: 0;
     margin: 0;
     font-family: 'mono-regular';
+    font-size: .8rem;
 }
 
 #main {
@@ -77,4 +78,21 @@ body {
     :root {
         --display_columns: 8;
     }
+}
+
+button:hover {
+    background-color: var(--hint) !important;
+    color: var(--fg) !important;
+}
+
+button:focus {
+    background-color: var(--hint) !important;
+    color: var(--fg) !important;
+    outline: none !important;
+}
+
+button:active {
+    transform: translate(.1rem, .1rem) !important;
+    box-shadow: .2rem .1rem 0 0 var(--hint) !important;
+    outline: none !important;
 }

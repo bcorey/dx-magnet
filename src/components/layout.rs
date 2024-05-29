@@ -1,3 +1,4 @@
+use crate::components::Button;
 use dioxus::prelude::*;
 
 const CONTAINER_STYLE: &str = r#"
@@ -63,22 +64,30 @@ pub fn Cell(
 
 const WINDOW_STYLE: &str = r#"
     box-shadow: .4rem .3rem var(--hint);
-    width: content-width;
-    height: content-height;
     position: relative;
-    z-index: 1000;
     border: 0.05rem solid var(--fg);
     padding: 1rem;
     box-sizing: border-box;
     background-color: var(--bg);
 "#;
 
+const HIGHEST_Z_PRIORITY: &str = r#"z-index: 1000;"#;
+
 #[component]
 pub fn Window(children: Element) -> Element {
+    let style = format!("{}\n{}", WINDOW_STYLE, HIGHEST_Z_PRIORITY);
     rsx! {
         div {
-            style: WINDOW_STYLE,
-            {children}
+            style: style,
+            Cell {
+                span: 1..1,
+                rows: 2,
+                columns: 1,
+                {children},
+                Button {
+                    name: "OK"
+                }
+            }
         }
     }
 }
