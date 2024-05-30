@@ -1,86 +1,161 @@
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
-use tracing::info;
 
-struct GlobalDragInfo {
-    cur_pos: Option<Point2D<u32, ClientSpace>>,
-    last_pos: Option<Point2D<u32, ClientSpace>>,
+#[derive(Clone, PartialEq)]
+enum GlobalDragStates {
+    INITIAL,
+    DRAGGING(Point2D<u32, ClientSpace>),
+    RESTING(Point2D<u32, ClientSpace>),
+}
+struct DraggableStateController;
+
+impl DraggableStateController {
+    fn start_drag(
+        event: PointerEvent,
+        mut global_drag_info: Signal<GlobalDragState>,
+        mut local_drag_info: Signal<LocalDragState>,
+    ) {
+        local_drag_info
+            .write()
+            .start_drag(event.data.element_coordinates().to_u32());
+        global_drag_info
+            .write()
+            .start_drag(event.data.client_coordinates().to_u32());
+    }
+
+    fn update_drag(
+        event: PointerEvent,
+        mut global_drag_info: Signal<GlobalDragState>,
+        active: bool,
+    ) {
+        if !active || !global_drag_info.read().is_dragging() {
+            return;
+        }
+        let point = event.data.client_coordinates().to_u32();
+        global_drag_info.write().update_drag(point);
+    }
+
+    fn stop_drag(mut global_drag_info: Signal<GlobalDragState>) {
+        global_drag_info.write().stop_drag();
+    }
 }
 
-impl GlobalDragInfo {
+#[derive(Clone)]
+struct GlobalDragState {
+    drag_state: GlobalDragStates,
+}
+
+impl GlobalDragState {
     fn new() -> Self {
         Self {
-            cur_pos: None,
-            last_pos: None,
+            drag_state: GlobalDragStates::INITIAL,
         }
     }
 
     fn stop_drag(&mut self) {
-        self.cur_pos.map(|cur_pos| self.last_pos = Some(cur_pos));
-        self.cur_pos = None;
+        self.drag_state = match self.drag_state {
+            GlobalDragStates::DRAGGING(position) => GlobalDragStates::RESTING(position),
+            _ => self.drag_state.clone(),
+        };
     }
 
     fn is_dragging(&self) -> bool {
-        self.cur_pos.is_some()
+        match self.drag_state {
+            GlobalDragStates::DRAGGING(_) => true,
+            _ => false,
+        }
     }
 
-    fn set_position(&mut self, pos: Point2D<u32, ClientSpace>) {
-        self.cur_pos = Some(pos);
+    fn start_drag(&mut self, position: Point2D<u32, ClientSpace>) -> &mut Self {
+        self.drag_state = match self.drag_state {
+            GlobalDragStates::INITIAL | GlobalDragStates::RESTING(_) => {
+                GlobalDragStates::DRAGGING(position)
+            }
+            _ => self.drag_state.clone(),
+        };
+        self
+    }
+
+    fn update_drag(&mut self, pos: Point2D<u32, ClientSpace>) {
+        self.drag_state = match self.drag_state {
+            GlobalDragStates::DRAGGING(_) => GlobalDragStates::DRAGGING(pos),
+            _ => self.drag_state.clone(),
+        };
+    }
+
+    fn get_drag_area_style(&self) -> String {
+        match self.is_dragging() {
+            true => DRAG_AREA_STYLES.to_string(),
+            false => String::new(),
+        }
     }
 }
 
-struct LocalDragInfo {
-    element_drag_location: Option<Point2D<u32, ElementSpace>>,
-    is_dragging: bool,
-    stored_style: String,
+#[derive(Clone)]
+enum LocalDragStates {
+    INITIAL,
+    GRABBED(Point2D<u32, ElementSpace>),
+    RESTING(Point2D<u32, ClientSpace>),
 }
 
-impl LocalDragInfo {
+struct LocalDragState {
+    drag_state: LocalDragStates,
+}
+
+impl LocalDragState {
     fn new() -> Self {
         Self {
-            element_drag_location: None,
-            is_dragging: false,
-            stored_style: String::new(),
+            drag_state: LocalDragStates::INITIAL,
         }
     }
 
-    fn is_dragging(&self) -> bool {
-        self.is_dragging
+    fn stop_dragging(&mut self, pointer_position: Point2D<u32, ClientSpace>) {
+        self.drag_state = match self.drag_state {
+            LocalDragStates::GRABBED(grab_location) => {
+                let x = pointer_position.x - grab_location.x;
+                let y = pointer_position.y - grab_location.y;
+                let resting_position: Point2D<u32, ClientSpace> = Point2D::new(x, y);
+                LocalDragStates::RESTING(resting_position)
+            }
+            _ => self.drag_state.clone(),
+        };
     }
 
-    fn stop_dragging(&mut self, style: String) {
-        self.is_dragging = false;
-        self.element_drag_location = None;
-        self.stored_style = style;
+    fn start_drag(&mut self, drag_point: Point2D<u32, ElementSpace>) {
+        self.drag_state = LocalDragStates::GRABBED(drag_point);
     }
 
-    fn start_dragging(&mut self, drag_point: Point2D<u32, ElementSpace>) {
-        self.element_drag_location = Some(drag_point);
-        self.is_dragging = true;
-    }
-
-    fn get_style(
-        &mut self,
-        cur_pos: Option<Point2D<u32, ClientSpace>>,
-        last_pos: Option<Point2D<u32, ClientSpace>>,
-    ) -> String {
-        if !self.is_dragging() {
-            return self.stored_style.clone();
+    fn get_position(&mut self, global_drag_state: GlobalDragStates) -> String {
+        // match global_drag_state {
+        //     GlobalDragStates::DRAGGING(latest_pointer_position) => {
+        //         Self::location_with_grab_offset(grab_location, latest_pointer_position)
+        //     }
+        //     GlobalDragStates::RESTING(final_pointer_position) => match self.drag_state {
+        //         LocalDragStates::INITIAL => "".to_string(),
+        //         LocalDragStates::RESTING(resting_position) => Self::location(resting_position),
+        //         LocalDragStates::GRABBED(grab_location) => {
+        //             self.stop_dragging(final_pointer_position);
+        //         }
+        //     },
+        //     _ => "".to_string(),
+        // }
+        match self.drag_state {
+            LocalDragStates::INITIAL => "".to_string(),
+            LocalDragStates::RESTING(resting_position) => Self::location(resting_position),
+            LocalDragStates::GRABBED(grab_location) => match global_drag_state {
+                GlobalDragStates::DRAGGING(latest_pointer_position) => {
+                    Self::location_with_grab_offset(grab_location, latest_pointer_position)
+                }
+                GlobalDragStates::RESTING(final_pointer_position) => {
+                    self.stop_dragging(final_pointer_position);
+                    self.get_position(global_drag_state)
+                }
+                _ => "".to_string(),
+            },
         }
-
-        if let Some(drag_info) = cur_pos {
-            return Self::build_style(self.element_drag_location.unwrap(), drag_info);
-        } else {
-            let last_pos = last_pos.unwrap();
-
-            let style = LocalDragInfo::build_style(self.element_drag_location.unwrap(), last_pos);
-
-            self.stop_dragging(style.clone());
-            return style;
-        }
     }
 
-    fn build_style(
+    fn location_with_grab_offset(
         drag_point: Point2D<u32, ElementSpace>,
         pointer_pos: Point2D<u32, ClientSpace>,
     ) -> String {
@@ -88,6 +163,13 @@ impl LocalDragInfo {
         let y = pointer_pos.y - drag_point.y;
 
         format!("{}\n left: {}px; top: {}px;", DRAGGABLE_STYLES, x, y)
+    }
+
+    fn location(pos: Point2D<u32, ClientSpace>) -> String {
+        format!(
+            "{}\n left: {}px; top: {}px;",
+            DRAGGABLE_STYLES, pos.x, pos.y
+        )
     }
 }
 
@@ -98,31 +180,15 @@ const DRAG_AREA_STYLES: &str = r#"
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
-    let drag_info = use_context_provider(|| Signal::new(GlobalDragInfo::new()));
+    let global_drag_info = use_context_provider(|| Signal::new(GlobalDragState::new()));
 
-    let mut style = String::new();
-    if drag_info.read().is_dragging() {
-        style = DRAG_AREA_STYLES.to_string();
-    }
-
-    let on_pointer_move =
-        move |event: PointerEvent, mut drag_info: Signal<GlobalDragInfo>, active: bool| {
-            if !active || !drag_info.read().is_dragging() {
-                return;
-            }
-            let point = event.data.client_coordinates().to_u32();
-            drag_info.write().set_position(point);
-        };
-
-    let on_pointer_up = move |mut drag_info: Signal<GlobalDragInfo>| {
-        drag_info.write().stop_drag();
-    };
+    let style = global_drag_info.read().get_drag_area_style();
 
     rsx! {
         div {
             style: style,
-            onpointermove: move |event| on_pointer_move(event, drag_info, active),
-            onpointerup: move |_| on_pointer_up(drag_info),
+            onpointermove: move |event| DraggableStateController::update_drag(event, global_drag_info, active),
+            onpointerup: move |_| DraggableStateController::stop_drag(global_drag_info),
             {children},
         }
     }
@@ -135,12 +201,11 @@ const DRAGGABLE_STYLES: &str = r#"
 
 #[component]
 pub fn Draggable(children: Element) -> Element {
-    let mut local_drag_info = use_context_provider(|| Signal::new(LocalDragInfo::new()));
-    let global_drag_info = use_context::<Signal<GlobalDragInfo>>();
-    let style = local_drag_info.write().get_style(
-        global_drag_info.read().cur_pos,
-        global_drag_info.read().last_pos,
-    );
+    let mut local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new()));
+    let global_drag_info = use_context::<Signal<GlobalDragState>>();
+    let style = local_drag_info
+        .write()
+        .get_position(global_drag_info.read().drag_state.clone());
 
     rsx! {
         div {
@@ -162,25 +227,13 @@ const DRAG_HANDLE_STYLES: &str = r#"
 
 #[component]
 fn DragHandle() -> Element {
-    let global_drag_info = use_context::<Signal<GlobalDragInfo>>();
-    let local_drag_info = use_context::<Signal<LocalDragInfo>>();
+    let global_drag_info = use_context::<Signal<GlobalDragState>>();
+    let local_drag_info = use_context::<Signal<LocalDragState>>();
 
-    let on_pointer_down =
-        move |event: PointerEvent,
-              mut global_drag_info: Signal<GlobalDragInfo>,
-              mut local_drag_info: Signal<LocalDragInfo>| {
-            info!("click on drag handle");
-            local_drag_info
-                .write()
-                .start_dragging(event.data.element_coordinates().to_u32());
-            global_drag_info
-                .write()
-                .set_position(event.data.client_coordinates().to_u32());
-        };
     rsx! {
         div {
             style: DRAG_HANDLE_STYLES,
-            onpointerdown: move |event| on_pointer_down(event, global_drag_info, local_drag_info),
+            onpointerdown: move |event| DraggableStateController::start_drag(event, global_drag_info, local_drag_info),
         }
     }
 }
