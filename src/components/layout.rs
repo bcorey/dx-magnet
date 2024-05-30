@@ -29,7 +29,6 @@ const CELL_STYLE: &str = r#"
     height: 100%;
     padding: 0;
     margin: 0;
-    border: .05rem solid var(--fg);
     box-sizing: border-box;
     display: grid;
 "#;

@@ -58,6 +58,8 @@ body {
     margin: 0;
     font-family: 'mono-regular';
     font-size: .8rem;
+    overflow-y: hidden;
+    overflow-x: hidden;
 }
 
 #main {
