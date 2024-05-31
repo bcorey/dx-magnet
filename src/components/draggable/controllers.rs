@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
 
+use crate::DraggableVariants;
+
 #[derive(Clone, PartialEq)]
 pub enum DragAreaStates {
     INITIAL,
@@ -86,6 +88,10 @@ impl GlobalDragState {
         self.snap_info = info;
     }
 
+    pub fn get_snap_info(&self) -> Option<(Point2D<f64, ClientSpace>, Point2D<f64, ClientSpace>)> {
+        return self.snap_info;
+    }
+
     fn stop_drag(&mut self) {
         if let DragAreaStates::DRAGGING(position) = self.drag_state {
             self.drag_state = match self.snap_info {
@@ -125,13 +131,24 @@ impl GlobalDragState {
     }
 }
 
+const DRAGGABLE_BASE_STYLES: &str = r#"
+    display: flex;
+    flex-flow: column;
+"#;
+
 const DRAGGABLE_STYLES: &str = r#"
     position: absolute;
-    background-color: var(--accent_1);
+    background-color: var(--accent_0);
+    z-index: 10000;
+    width: 180px;
+    height: 200px;
+    box-shadow: .4rem .3rem var(--hint);
 "#;
 
 const SNAPPED_DRAGGABLE_STYLES: &str = r#"
-    transition: left .1s ease-in-out, top .1s ease-in-out, width 3s ease-in-out 3s, height 3s ease-in-out 3s;
+    transition: left .1s ease-in-out, top .1s ease-in-out, width .1s ease-in-out .1s, height .1s ease-in-out .1s, box-shadow .1s ease-in-out;
+    box-shadow: 0 0 solid var(--hint);
+    z-index: 100;
 "#;
 
 #[derive(Clone, Copy)]
@@ -144,12 +161,14 @@ enum DraggableStates {
 
 pub struct LocalDragState {
     drag_state: DraggableStates,
+    draggable_variant: DraggableVariants,
 }
 
 impl LocalDragState {
-    pub fn new() -> Self {
+    pub fn new(variant: DraggableVariants) -> Self {
         Self {
             drag_state: DraggableStates::INITIAL,
+            draggable_variant: variant,
         }
     }
 
@@ -178,15 +197,15 @@ impl LocalDragState {
 
     pub fn get_position(&mut self, global_drag_state: DragAreaStates) -> String {
         match (self.drag_state.clone(), global_drag_state.clone()) {
-            (DraggableStates::INITIAL, _) => String::new(),
-            (DraggableStates::RESTING(resting_position), _) => Self::location(resting_position),
+            (DraggableStates::INITIAL, _) => self.initial_style(),
+            (DraggableStates::RESTING(resting_position), _) => self.location(resting_position),
             (DraggableStates::SNAPPED(snap_data), _) => {
-                Self::snapped_style(snap_data.0, snap_data.1)
+                self.snapped_style(snap_data.0, snap_data.1)
             }
             (
                 DraggableStates::GRABBED(grab_location),
                 DragAreaStates::DRAGGING(latest_pointer_position),
-            ) => Self::location_with_grab_offset(grab_location, latest_pointer_position),
+            ) => self.location_with_grab_offset(grab_location, latest_pointer_position),
             (DraggableStates::GRABBED(_grab_location), DragAreaStates::RELEASED(release_state)) => {
                 self.stop_dragging(release_state);
                 self.get_position(global_drag_state)
@@ -199,29 +218,47 @@ impl LocalDragState {
     }
 
     fn location_with_grab_offset(
+        &self,
         drag_point: Point2D<f64, ElementSpace>,
         pointer_pos: Point2D<f64, ClientSpace>,
     ) -> String {
         let x = pointer_pos.x - drag_point.x;
         let y = pointer_pos.y - drag_point.y;
 
-        format!("{}\n left: {}px; top: {}px;", DRAGGABLE_STYLES, x, y)
-    }
-
-    fn location(pos: Point2D<f64, ClientSpace>) -> String {
         format!(
-            "{}\n left: {}px; top: {}px;",
-            DRAGGABLE_STYLES, pos.x, pos.y
+            "{}{}\n left: {}px; top: {}px;",
+            DRAGGABLE_BASE_STYLES, DRAGGABLE_STYLES, x, y
         )
     }
 
-    fn snapped_style(pos: Point2D<f64, ClientSpace>, size: Point2D<f64, ClientSpace>) -> String {
+    fn location(&self, pos: Point2D<f64, ClientSpace>) -> String {
         format!(
-            "{}{}\n width: {}px; height: {}px;",
+            "{}{}\n left: {}px; top: {}px;",
+            DRAGGABLE_BASE_STYLES, DRAGGABLE_STYLES, pos.x, pos.y
+        )
+    }
+
+    fn snapped_style(
+        &self,
+        pos: Point2D<f64, ClientSpace>,
+        size: Point2D<f64, ClientSpace>,
+    ) -> String {
+        format!(
+            "{}{}{}\n width: {}px; height: {}px;",
+            DRAGGABLE_BASE_STYLES,
+            self.location(pos),
             SNAPPED_DRAGGABLE_STYLES,
-            Self::location(pos),
             size.x,
             size.y
         )
+    }
+
+    fn initial_style(&self) -> String {
+        match self.draggable_variant {
+            DraggableVariants::DOCKED => {
+                format!("display: flex; flex-flow: column; height: 100%;")
+            }
+            DraggableVariants::FLOATING(_pos) => String::new(),
+        }
     }
 }

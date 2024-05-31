@@ -18,26 +18,83 @@ fn App() -> Element {
         link { rel: "stylesheet", href: "styles.css" }
         DragArea {
             active: true,
-            Draggable {
-                Window {
-                    "draggable window"
-                }
-            }
-            Draggable {
-                Window {
-                    "draggable window 2"
-                }
-            }
+
             Container {
+                columns: 8,
                 Cell {
-                    span: 1..1,
+                    span: 1..2,
+                    rows: 1,
+                    columns: 1,
+                    DragTarget{
+                        Draggable {
+                            variant: DraggableVariants::DOCKED,
+                            Window {
+                                "draggable window"
+                            }
+                        }
+                    }
+                }
+                Cell {
+                    span: 3..1,
                     rows: 3,
                     columns: 1,
-                    DragTarget{}
+                    DragTarget{
+                        Draggable {
+                            variant: DraggableVariants::DOCKED,
+                            Window {
+                                "draggable window 2"
+                            }
+                        }
+                    }
+                    DragTarget{
+                        Draggable {
+                            variant: DraggableVariants::DOCKED,
+                            Window {
+                                "draggable window 2"
+                            }
+                        }
+                    }
+                    DragTarget{
+                        Draggable {
+                            variant: DraggableVariants::DOCKED,
+                            Window {
+                                "draggable window"
+                            }
+                        }
+                    }
                 }
                 Cell {
-                    span: 2..12,
-                    "Hello world",
+                    span: 4..2,
+                    rows: 3,
+                    columns: 1,
+                    DragTarget{
+                        Draggable {
+                            variant: DraggableVariants::DOCKED,
+                            Window {
+                                "draggable window 2"
+                            }
+                        }
+                    }
+                    DragTarget{}
+                    DragTarget{
+                        Draggable {
+                            variant: DraggableVariants::DOCKED,
+                            Window {
+                                "draggable window"
+                            }
+                        }
+                    }
+                }
+                Cell {
+                    span: 6..3,
+                    DragTarget{
+                        Draggable {
+                            variant: DraggableVariants::DOCKED,
+                            Window {
+                                "the really big one",
+                            }
+                        }
+                    }
                 }
             }
         }

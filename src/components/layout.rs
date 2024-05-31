@@ -8,7 +8,6 @@ const CONTAINER_STYLE: &str = r#"
     margin: 0;
     background-color: var(--bg);
     display: grid;
-    grid-template-columns: repeat(var(--display_columns), 1fr);
     grid-template-rows: auto;
     position: absolute;
     top: 0;
@@ -16,10 +15,19 @@ const CONTAINER_STYLE: &str = r#"
 "#;
 
 #[component]
-pub fn Container(children: Element) -> Element {
+pub fn Container(columns: Option<u64>, rows: Option<u64>, children: Element) -> Element {
+    let mut style = CONTAINER_STYLE.to_string();
+
+    if let Some(num) = rows {
+        style = format!("{}\n grid-template-rows: repeat({}, 1fr);", style, num)
+    }
+
+    if let Some(num) = columns {
+        style = format!("{}\n grid-template-columns: repeat({}, 1fr);", style, num);
+    }
     rsx! {
         div {
-            style: CONTAINER_STYLE,
+            style: style,
             {children},
         }
     }
@@ -46,11 +54,11 @@ pub fn Cell(
     );
 
     if let Some(num) = rows {
-        style = format!("{}\n grid-template-rows: repeat({}, auto);", style, num)
+        style = format!("{}\n grid-template-rows: repeat({}, 1fr);", style, num)
     }
 
     if let Some(num) = columns {
-        style = format!("{}\n grid-template-columns: repeat({}, auto);", style, num);
+        style = format!("{}\n grid-template-columns: repeat({}, 1fr);", style, num);
     }
 
     rsx! {
@@ -62,13 +70,17 @@ pub fn Cell(
 }
 
 const WINDOW_STYLE: &str = r#"
-    box-shadow: .4rem .3rem var(--hint);
     position: relative;
     border: 0.05rem solid var(--fg);
     padding: 1rem;
     box-sizing: border-box;
     background-color: var(--bg);
+    transition: inherit;
     height: 100%;
+    display: flex;
+    align-items: center;
+    align-content:center;
+    flex-flow: column;
 "#;
 
 const HIGHEST_Z_PRIORITY: &str = r#"z-index: 1000;"#;
@@ -79,14 +91,10 @@ pub fn Window(children: Element) -> Element {
     rsx! {
         div {
             style: style,
-            Cell {
-                span: 1..1,
-                rows: 2,
-                columns: 1,
-                {children},
-                Button {
-                    name: "OK"
-                }
+
+            {children},
+            Button {
+                name: "OK"
             }
         }
     }

@@ -17,9 +17,15 @@ pub fn DragArea(active: bool, children: Element) -> Element {
     }
 }
 
+#[derive(Clone, PartialEq)]
+pub enum DraggableVariants {
+    DOCKED,
+    FLOATING((f64, f64)),
+}
+
 #[component]
-pub fn Draggable(children: Element) -> Element {
-    let local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new()));
+pub fn Draggable(variant: DraggableVariants, children: Element) -> Element {
+    let local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new(variant)));
     let global_drag_info = use_context::<Signal<GlobalDragState>>();
     let style =
         DraggableStateController::update_draggable_position(local_drag_info, global_drag_info);
@@ -38,8 +44,9 @@ const DRAG_HANDLE_STYLES: &str = r#"
     height: 2rem;
     position: relative;
     background-color: var(--hint);
-    z-index: 2000;
     cursor: grab;
+    border: 0.05rem solid var(--fg);
+    box-sizing: border-box;
 "#;
 
 #[component]
