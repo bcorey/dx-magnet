@@ -5,8 +5,15 @@ use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
 pub enum DragAreaStates {
     INITIAL,
     DRAGGING(Point2D<f64, ClientSpace>),
+    RELEASED(DragReleaseStates),
+}
+
+#[derive(Clone, PartialEq)]
+pub enum DragReleaseStates {
+    SNAPPING((Point2D<f64, ClientSpace>, Point2D<f64, ClientSpace>)),
     RESTING(Point2D<f64, ClientSpace>),
 }
+
 pub struct DraggableStateController;
 
 impl DraggableStateController {
@@ -57,12 +64,14 @@ const DRAG_AREA_STYLES: &str = r#"
 #[derive(Clone)]
 pub struct GlobalDragState {
     drag_state: DragAreaStates,
+    snap_info: Option<(Point2D<f64, ClientSpace>, Point2D<f64, ClientSpace>)>,
 }
 
 impl GlobalDragState {
     pub fn new() -> Self {
         Self {
             drag_state: DragAreaStates::INITIAL,
+            snap_info: None,
         }
     }
 
@@ -70,9 +79,21 @@ impl GlobalDragState {
         self.drag_state.clone()
     }
 
+    pub fn set_snap_info(
+        &mut self,
+        info: Option<(Point2D<f64, ClientSpace>, Point2D<f64, ClientSpace>)>,
+    ) {
+        self.snap_info = info;
+    }
+
     fn stop_drag(&mut self) {
         if let DragAreaStates::DRAGGING(position) = self.drag_state {
-            self.drag_state = DragAreaStates::RESTING(position);
+            self.drag_state = match self.snap_info {
+                Some((snap_origin, snap_size)) => {
+                    DragAreaStates::RELEASED(DragReleaseStates::SNAPPING((snap_origin, snap_size)))
+                }
+                None => DragAreaStates::RELEASED(DragReleaseStates::RESTING(position)),
+            };
         }
     }
 
@@ -84,7 +105,7 @@ impl GlobalDragState {
     }
 
     fn start_drag(&mut self, position: Point2D<f64, ClientSpace>) -> &mut Self {
-        if let DragAreaStates::INITIAL | DragAreaStates::RESTING(_) = self.drag_state {
+        if let DragAreaStates::INITIAL | DragAreaStates::RELEASED(_) = self.drag_state {
             self.drag_state = DragAreaStates::DRAGGING(position);
         }
         self
@@ -109,11 +130,16 @@ const DRAGGABLE_STYLES: &str = r#"
     background-color: var(--accent_1);
 "#;
 
+const SNAPPED_DRAGGABLE_STYLES: &str = r#"
+    transition: left .1s ease-in-out, top .1s ease-in-out, width 3s ease-in-out 3s, height 3s ease-in-out 3s;
+"#;
+
 #[derive(Clone, Copy)]
 enum DraggableStates {
     INITIAL,
     GRABBED(Point2D<f64, ElementSpace>),
     RESTING(Point2D<f64, ClientSpace>),
+    SNAPPED((Point2D<f64, ClientSpace>, Point2D<f64, ClientSpace>)),
 }
 
 pub struct LocalDragState {
@@ -127,14 +153,21 @@ impl LocalDragState {
         }
     }
 
-    fn stop_dragging(&mut self, pointer_position: Point2D<f64, ClientSpace>) {
-        self.drag_state = match self.drag_state {
-            DraggableStates::GRABBED(grab_location) => {
+    fn stop_dragging(&mut self, release_state: DragReleaseStates) {
+        self.drag_state = match (self.drag_state, release_state) {
+            (
+                DraggableStates::GRABBED(grab_location),
+                DragReleaseStates::RESTING(pointer_position),
+            ) => {
                 let x = pointer_position.x - grab_location.x;
                 let y = pointer_position.y - grab_location.y;
                 let resting_position: Point2D<f64, ClientSpace> = Point2D::new(x, y);
                 DraggableStates::RESTING(resting_position)
             }
+            (
+                DraggableStates::GRABBED(_grab_location),
+                DragReleaseStates::SNAPPING(snap_position),
+            ) => DraggableStates::SNAPPED(snap_position),
             _ => self.drag_state.clone(),
         };
     }
@@ -147,15 +180,15 @@ impl LocalDragState {
         match (self.drag_state.clone(), global_drag_state.clone()) {
             (DraggableStates::INITIAL, _) => String::new(),
             (DraggableStates::RESTING(resting_position), _) => Self::location(resting_position),
+            (DraggableStates::SNAPPED(snap_data), _) => {
+                Self::snapped_style(snap_data.0, snap_data.1)
+            }
             (
                 DraggableStates::GRABBED(grab_location),
                 DragAreaStates::DRAGGING(latest_pointer_position),
             ) => Self::location_with_grab_offset(grab_location, latest_pointer_position),
-            (
-                DraggableStates::GRABBED(_grab_location),
-                DragAreaStates::RESTING(final_pointer_position),
-            ) => {
-                self.stop_dragging(final_pointer_position);
+            (DraggableStates::GRABBED(_grab_location), DragAreaStates::RELEASED(release_state)) => {
+                self.stop_dragging(release_state);
                 self.get_position(global_drag_state)
             }
             (DraggableStates::GRABBED(_), DragAreaStates::INITIAL) => {
@@ -179,6 +212,16 @@ impl LocalDragState {
         format!(
             "{}\n left: {}px; top: {}px;",
             DRAGGABLE_STYLES, pos.x, pos.y
+        )
+    }
+
+    fn snapped_style(pos: Point2D<f64, ClientSpace>, size: Point2D<f64, ClientSpace>) -> String {
+        format!(
+            "{}{}\n width: {}px; height: {}px;",
+            SNAPPED_DRAGGABLE_STYLES,
+            Self::location(pos),
+            size.x,
+            size.y
         )
     }
 }

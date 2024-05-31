@@ -4,7 +4,7 @@ const BUTTON_STYLES: &str = r#"
     font-family: inherit;
     font-size: inherit;
     max-width: fit-content;
-    transition: transform .05s ease-in-out;
+    max-height: min-content;
     transition: box-shadow .05s ease-in-out;
     cursor: pointer;
     text-transform: uppercase;

@@ -68,6 +68,7 @@ const WINDOW_STYLE: &str = r#"
     padding: 1rem;
     box-sizing: border-box;
     background-color: var(--bg);
+    height: 100%;
 "#;
 
 const HIGHEST_Z_PRIORITY: &str = r#"z-index: 1000;"#;

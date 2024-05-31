@@ -31,11 +31,9 @@ fn App() -> Element {
             Container {
                 Cell {
                     span: 1..1,
-                    rows: 12,
+                    rows: 3,
                     columns: 1,
-                    div {
-                        style: "width: 100%; height: 100%; background-color: var(--hint)",
-                    }
+                    DragTarget{}
                 }
                 Cell {
                     span: 2..12,
