@@ -18,7 +18,6 @@ fn App() -> Element {
         link { rel: "stylesheet", href: "styles.css" }
         DragArea {
             active: true,
-
             Container {
                 columns: 8,
                 Cell {

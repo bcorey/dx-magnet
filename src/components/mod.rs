@@ -6,3 +6,5 @@ pub use button::*;
 
 pub mod draggable;
 pub use draggable::*;
+
+pub mod dom_utilities;

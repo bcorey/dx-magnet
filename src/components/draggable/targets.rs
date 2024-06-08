@@ -1,4 +1,4 @@
-use crate::components::draggable::*;
+use crate::{components::draggable::*, dom_utilities::get_element_by_id};
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace};
 use web_sys::DomRect;
@@ -28,7 +28,7 @@ pub fn DragTarget(children: Element) -> Element {
     if let DragAreaStates::DRAGGING(drag_point) = drag_state {
         if let Some(element) = get_element_by_id(id().as_str()) {
             let rect = element.get_bounding_client_rect();
-            let is_inside_rect = is_inside_rect(&rect, drag_point);
+            let is_inside_rect = is_inside_rect(&rect, drag_point.current_pos);
             let state_has_changed = target_active() != is_inside_rect;
             let active = target_active();
             if state_has_changed {
@@ -55,12 +55,6 @@ pub fn DragTarget(children: Element) -> Element {
             {children}
         }
     }
-}
-
-fn get_element_by_id(id: &str) -> Option<web_sys::Element> {
-    web_sys::window()
-        .and_then(|win| win.document())
-        .and_then(|doc| doc.get_element_by_id(id))
 }
 
 fn is_inside_rect(rect: &DomRect, point: Point2D<f64, ClientSpace>) -> bool {

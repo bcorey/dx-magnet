@@ -25,14 +25,15 @@ pub enum DraggableVariants {
 
 #[component]
 pub fn Draggable(variant: DraggableVariants, children: Element) -> Element {
-    let local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new(variant)));
+    let id = use_signal(|| uuid::Uuid::new_v4().to_string());
+    let local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
     let global_drag_info = use_context::<Signal<GlobalDragState>>();
     let style =
         DraggableStateController::update_draggable_position(local_drag_info, global_drag_info);
-
     rsx! {
         div {
             style: style,
+            id: id,
             DragHandle {}
             {children}
         }
