@@ -6,7 +6,6 @@ use web_sys::DomRect;
 const DRAG_TARGET_STYLE: &str = r#"
     width: 100%;
     height: 100%;
-    background-color: var(--bg);
 "#;
 
 const DRAG_TARGET_ACTIVE_STYLE: &str = r#"

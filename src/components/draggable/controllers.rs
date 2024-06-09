@@ -72,7 +72,14 @@ impl DraggableStateController {
     }
 }
 
-const DRAG_AREA_STYLES: &str = r#"
+const DRAG_AREA_BASE_STYLES: &str = r#"
+    background-image: radial-gradient(black .05rem, transparent 0);
+    background-size: .6rem .6rem;
+    width: 100%;
+    height: 100%;
+"#;
+
+const DRAG_AREA_ACTIVE_STYLES: &str = r#"
     -webkit-user-select: none;
     user-select: none;
 "#;
@@ -143,8 +150,8 @@ impl GlobalDragState {
 
     pub fn get_drag_area_style(&self) -> String {
         match self.is_dragging() {
-            true => DRAG_AREA_STYLES.to_string(),
-            false => String::new(),
+            true => format!("{}{}", DRAG_AREA_BASE_STYLES, DRAG_AREA_ACTIVE_STYLES),
+            false => DRAG_AREA_BASE_STYLES.to_string(),
         }
     }
 }
@@ -152,6 +159,9 @@ impl GlobalDragState {
 const DRAGGABLE_BASE_STYLES: &str = r#"
     display: flex;
     flex-flow: column;
+    flex-direction: column;
+    height: 100%;
+    align-content: flex-start;
 "#;
 
 const DRAGGABLE_STYLES: &str = r#"
@@ -194,24 +204,6 @@ enum DraggableSnapStates {
     FINAL(RectData),
 }
 
-impl DraggableSnapStates {
-    pub fn get_next_state(self, transition: DragEndings) -> Self {
-        match (self, transition) {
-            (DraggableSnapStates::FINAL(from), DragEndings::SNAPPING(to)) => {
-                DraggableSnapStates::PREVIEW { from, to }
-            }
-            (
-                DraggableSnapStates::PREVIEW { to, from },
-                DragEndings::SNAPPING(other_draggable_new_rect),
-            ) => match other_draggable_new_rect == from {
-                true => DraggableSnapStates::FINAL(to),
-                false => DraggableSnapStates::FINAL(from),
-            },
-            (Self::PREVIEW { from, .. }, DragEndings::RELEASING(_)) => Self::FINAL(from),
-            (Self::FINAL(to), DragEndings::RELEASING(_)) => Self::FINAL(to),
-        }
-    }
-}
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct RectData {
     pub position: Point2D<f64, ClientSpace>,
@@ -377,7 +369,7 @@ impl LocalDragState {
                 to: drag_area_dragging_state.starting_data,
             },
             (DraggableSnapStates::PREVIEW { from, .. }, true) => DraggableSnapStates::FINAL(from),
-            (DraggableSnapStates::PREVIEW { from, to }, false)
+            (DraggableSnapStates::PREVIEW { from, .. }, false)
                 if !from.get_is_within_bounds(drag_area_dragging_state.current_pos) =>
             {
                 DraggableSnapStates::FINAL(from)
@@ -481,9 +473,7 @@ impl LocalDragState {
 
     fn initial_style(&self) -> String {
         match self.draggable_variant {
-            DraggableVariants::DOCKED => {
-                format!("display: flex; flex-flow: column; height: 100%;")
-            }
+            DraggableVariants::DOCKED => DRAGGABLE_BASE_STYLES.to_string(),
             DraggableVariants::FLOATING(_pos) => String::new(),
         }
     }

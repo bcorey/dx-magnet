@@ -57,6 +57,11 @@ const DRAG_HANDLE_STYLES: &str = r#"
     cursor: grab;
     border: 0.05rem solid var(--fg);
     box-sizing: border-box;
+    border-radius: inherit;
+    align-self: flex-start;
+    flex-basis: 2rem;
+    flex-shrink: 0;
+    flex-grow: 1;
 "#;
 
 #[component]

@@ -6,7 +6,6 @@ const CONTAINER_STYLE: &str = r#"
     height: 100%;
     padding: 0;
     margin: 0;
-    background-color: var(--bg);
     display: grid;
     grid-template-rows: auto;
     position: absolute;
@@ -84,15 +83,17 @@ pub fn Cell(
 const WINDOW_STYLE: &str = r#"
     position: relative;
     border: 0.05rem solid var(--fg);
-    padding: 1rem;
+    padding-top: 1rem;
     box-sizing: border-box;
     background-color: var(--bg);
     transition: inherit;
     height: 100%;
     display: flex;
     align-items: center;
-    align-content:center;
+    align-content: center;
+    text-align: center;
     flex-flow: column;
+    border-radius: inherit;
 "#;
 
 const HIGHEST_Z_PRIORITY: &str = r#"z-index: 1000;"#;
