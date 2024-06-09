@@ -342,7 +342,10 @@ impl LocalDragState {
         let this_rect = match draggable_rest_state.clone() {
             DraggableRestStates::INITIAL => self.get_rect(),
             DraggableRestStates::RELEASED(rect) => rect,
-            DraggableRestStates::SNAPPED(_) => self.get_rect(),
+            DraggableRestStates::SNAPPED(snap_state) => match snap_state {
+                DraggableSnapStates::FINAL(rect) => rect,
+                DraggableSnapStates::PREVIEW { to, .. } => to,
+            },
         };
         let intersects_this_rect =
             this_rect.get_is_within_bounds(drag_area_dragging_state.current_pos);
