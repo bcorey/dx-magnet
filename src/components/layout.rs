@@ -19,11 +19,17 @@ pub fn Container(columns: Option<u64>, rows: Option<u64>, children: Element) -> 
     let mut style = CONTAINER_STYLE.to_string();
 
     if let Some(num) = rows {
-        style = format!("{}\n grid-template-rows: repeat({}, 1fr);", style, num)
+        style = format!(
+            "{}\n grid-template-rows: repeat({}, minmax(0, 1fr));",
+            style, num
+        )
     }
 
     if let Some(num) = columns {
-        style = format!("{}\n grid-template-columns: repeat({}, 1fr);", style, num);
+        style = format!(
+            "{}\n grid-template-columns: repeat({}, minmax(0, 1fr));",
+            style, num
+        );
     }
     rsx! {
         div {
@@ -54,11 +60,17 @@ pub fn Cell(
     );
 
     if let Some(num) = rows {
-        style = format!("{}\n grid-template-rows: repeat({}, 1fr);", style, num)
+        style = format!(
+            "{}\n grid-template-rows: repeat({}, minmax(0, 1fr));",
+            style, num
+        )
     }
 
     if let Some(num) = columns {
-        style = format!("{}\n grid-template-columns: repeat({}, 1fr);", style, num);
+        style = format!(
+            "{}\n grid-template-columns: repeat({}, minmax(0, 1fr));",
+            style, num
+        );
     }
 
     rsx! {
