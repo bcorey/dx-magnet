@@ -277,7 +277,10 @@ impl LocalDragState {
                 draggable_rest_state,
                 drag_area_dragging_state,
             ),
-            //(DraggableStates::RESTING(DraggableRestStates::SNAPPED(DragSn)), DragAreaStates::RELEASED(drag_end_data))
+            (
+                DraggableStates::RESTING(DraggableRestStates::SNAPPED(snap_state)),
+                DragAreaStates::RELEASED(drag_end_data),
+            ) => self.update_state_on_other_drag_end(snap_state, drag_end_data),
             (
                 DraggableStates::GRABBED(draggable_grab_data),
                 DragAreaStates::RELEASED(drag_area_dragging_state),
@@ -306,6 +309,29 @@ impl LocalDragState {
                 DraggableRestStates::SNAPPED(DraggableSnapStates::FINAL(snap_data)),
             ),
         }
+    }
+
+    fn update_state_on_other_drag_end(
+        &mut self,
+        snap_state: DraggableSnapStates,
+        drag_end_data: DragEndings,
+    ) {
+        let new_snap_state = match (snap_state, drag_end_data) {
+            (DraggableSnapStates::PREVIEW { from, to }, DragEndings::SNAPPING(other_rect))
+                if other_rect.get_is_overlapping(from) =>
+            {
+                match other_rect.get_is_overlapping(from) {
+                    true => DraggableSnapStates::FINAL(to),
+                    false => DraggableSnapStates::FINAL(from),
+                }
+            }
+            (DraggableSnapStates::PREVIEW { from, .. }, DragEndings::RELEASING(_)) => {
+                DraggableSnapStates::FINAL(from)
+            }
+            (_, _) => snap_state,
+        };
+
+        self.drag_state = DraggableStates::RESTING(DraggableRestStates::SNAPPED(new_snap_state));
     }
 
     fn update_state_while_other_is_dragged(
@@ -347,8 +373,13 @@ impl LocalDragState {
                 from: rect,
                 to: drag_area_dragging_state.starting_data,
             },
-            (_, false) => snap_state,
             (DraggableSnapStates::PREVIEW { from, .. }, true) => DraggableSnapStates::FINAL(from),
+            (DraggableSnapStates::PREVIEW { from, to }, false)
+                if !from.get_is_within_bounds(drag_area_dragging_state.current_pos) =>
+            {
+                DraggableSnapStates::FINAL(from)
+            }
+            (_, false) => snap_state,
         };
 
         self.drag_state = DraggableStates::RESTING(DraggableRestStates::SNAPPED(snap_state));
