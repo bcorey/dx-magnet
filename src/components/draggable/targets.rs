@@ -10,7 +10,8 @@ const DRAG_TARGET_STYLE: &str = r#"
 "#;
 
 const DRAG_TARGET_ACTIVE_STYLE: &str = r#"
-    background-color: var(--hint);
+    background-color: var(--bg);
+    background-image: repeating-linear-gradient(50deg, var(--fg), var(--fg) .05rem, transparent .01rem, transparent .4rem);
 "#;
 
 #[component]

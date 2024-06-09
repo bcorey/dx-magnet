@@ -27,7 +27,6 @@ fn App() -> Element {
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
-                            style_opt: "--bg: #fec651; --fg: #55198c; --hint: #cb9262;".to_string(),
                             Window {
                                 "draggable window"
                             }
@@ -75,7 +74,14 @@ fn App() -> Element {
                             }
                         }
                     }
-                    DragTarget{}
+                    DragTarget{
+                        Draggable {
+                            variant: DraggableVariants::DOCKED,
+                            Window {
+                                "draggable window final"
+                            }
+                        }
+                    }
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
