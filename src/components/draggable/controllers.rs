@@ -3,14 +3,14 @@ use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
 
 use crate::{dom_utilities::get_element_by_id, DraggableVariants};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DragAreaStates {
     INITIAL,
     DRAGGING(DragAreaActiveDragData),
     RELEASED(DragEndings),
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct DragAreaActiveDragData {
     pub current_pos: Point2D<f64, ClientSpace>,
     pub starting_data: RectData,
@@ -22,7 +22,7 @@ impl DragAreaActiveDragData {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DragEndings {
     SNAPPING(RectData),
     RELEASING(Point2D<f64, ClientSpace>),
@@ -169,26 +169,26 @@ const SNAPPED_DRAGGABLE_STYLES: &str = r#"
     z-index: 100;
 "#;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum DraggableStates {
     GRABBED(DraggableGrabData),
     RESTING(DraggableRestStates),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct DraggableGrabData {
     grab_point: Point2D<f64, ElementSpace>,
     pointer_position: Point2D<f64, ClientSpace>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum DraggableRestStates {
     INITIAL,
     RELEASED(RectData),
     SNAPPED(DraggableSnapStates),
 }
 
-#[derive(Clone, PartialEq, Copy)]
+#[derive(Clone, PartialEq, Copy, Debug)]
 enum DraggableSnapStates {
     PREVIEW { from: RectData, to: RectData },
     FINAL(RectData),
@@ -212,7 +212,7 @@ impl DraggableSnapStates {
         }
     }
 }
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct RectData {
     pub position: Point2D<f64, ClientSpace>,
     pub size: Point2D<f64, ClientSpace>,
@@ -316,16 +316,15 @@ impl LocalDragState {
         let this_rect = match draggable_rest_state.clone() {
             DraggableRestStates::INITIAL => self.get_rect(),
             DraggableRestStates::RELEASED(rect) => rect,
-            DraggableRestStates::SNAPPED(snap_data) => self.get_rect(),
+            DraggableRestStates::SNAPPED(_) => self.get_rect(),
         };
         let intersects_this_rect =
             this_rect.get_is_within_bounds(drag_area_dragging_state.current_pos);
         match (draggable_rest_state.clone(), intersects_this_rect) {
-            (DraggableRestStates::INITIAL, true) => {
+            (DraggableRestStates::INITIAL, _) => {
                 let snap_state = DraggableSnapStates::FINAL(this_rect);
                 self.get_next_snap_state(snap_state, intersects_this_rect, drag_area_dragging_state)
-            } // set to snapped - this_rect - and restart evaluation
-            (DraggableRestStates::INITIAL, false) => (), // no action
+            }
             (DraggableRestStates::RELEASED(_), _) => (), // no action
             (DraggableRestStates::SNAPPED(snap_state), _) => {
                 self.get_next_snap_state(
@@ -356,7 +355,7 @@ impl LocalDragState {
     }
 
     fn get_render_data(&self, global_drag_state: DragAreaStates) -> String {
-        match (self.drag_state, global_drag_state) {
+        match (self.drag_state, global_drag_state.clone()) {
             (DraggableStates::GRABBED(grab_data), DragAreaStates::DRAGGING(drag_data)) => {
                 self.location_with_grab_offset(grab_data.grab_point, drag_data.current_pos)
             }
@@ -367,8 +366,15 @@ impl LocalDragState {
                 DraggableStates::RESTING(DraggableRestStates::SNAPPED(snap_state)),
                 DragAreaStates::DRAGGING(drag_area_dragging_state),
             ) => self.get_render_data_for_avoidance_states(snap_state, drag_area_dragging_state),
+            (DraggableStates::RESTING(DraggableRestStates::INITIAL), DragAreaStates::INITIAL) => {
+                self.initial_style()
+            }
             (_, _) => {
-                tracing::info!("Illegal state when getting render data.");
+                tracing::error!(
+                    "Illegal state when getting render data. local state: {:?}, global state: {:?}",
+                    self.drag_state,
+                    global_drag_state
+                );
                 String::new()
             }
         }
@@ -393,11 +399,11 @@ impl LocalDragState {
     fn get_render_data_for_avoidance_states(
         &self,
         draggable_snap_state: DraggableSnapStates,
-        drag_area_dragging_state: DragAreaActiveDragData,
+        _drag_area_dragging_state: DragAreaActiveDragData,
     ) -> String {
         match draggable_snap_state {
             DraggableSnapStates::FINAL(rect) => self.snapped_style(rect),
-            DraggableSnapStates::PREVIEW { from, to } => self.snapped_style(to),
+            DraggableSnapStates::PREVIEW { to, .. } => self.snapped_style(to),
         }
     }
 
