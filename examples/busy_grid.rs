@@ -26,8 +26,8 @@ fn App() -> Element {
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
+                            title: "panel 1".to_string(),
                             Window {
-                                "draggable window"
                             }
                         }
                     }
@@ -39,24 +39,24 @@ fn App() -> Element {
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
+                            title: "panel 2".to_string(),
                             Window {
-                                "draggable window 2"
                             }
                         }
                     }
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
+                            title: "panel 3".to_string(),
                             Window {
-                                "draggable window 2"
                             }
                         }
                     }
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
+                            title: "panel 4".to_string(),
                             Window {
-                                "draggable window"
                             }
                         }
                     }
@@ -68,24 +68,24 @@ fn App() -> Element {
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
+                            title: "panel 5".to_string(),
                             Window {
-                                "draggable window 2"
                             }
                         }
                     }
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
+                            title: "panel 6".to_string(),
                             Window {
-                                "draggable window final"
                             }
                         }
                     }
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
+                            title: "panel 7".to_string(),
                             Window {
-                                "draggable window"
                             }
                         }
                     }
@@ -95,8 +95,8 @@ fn App() -> Element {
                     DragTarget{
                         Draggable {
                             variant: DraggableVariants::DOCKED,
+                            title: "panel 8".to_string(),
                             Window {
-                                "the really big one",
                             }
                         }
                     }

@@ -104,11 +104,7 @@ pub fn Window(children: Element) -> Element {
     rsx! {
         div {
             style: style,
-
             {children},
-            Button {
-                name: "OK"
-            }
         }
     }
 }

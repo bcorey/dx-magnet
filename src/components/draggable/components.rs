@@ -26,6 +26,7 @@ pub enum DraggableVariants {
 #[component]
 pub fn Draggable(
     variant: DraggableVariants,
+    title: String,
     style_opt: Option<String>,
     children: Element,
 ) -> Element {
@@ -43,7 +44,9 @@ pub fn Draggable(
         div {
             style: style,
             id: id,
-            DragHandle {}
+            DragHandle {
+                title: title,
+            }
             {children}
         }
     }
@@ -58,14 +61,18 @@ const DRAG_HANDLE_STYLES: &str = r#"
     border: 0.05rem solid var(--fg);
     box-sizing: border-box;
     border-radius: inherit;
-    align-self: flex-start;
     flex-basis: 2rem;
     flex-shrink: 0;
     flex-grow: 1;
+
+    display: flex;
+    align-items: center;
+    padding-left: .5rem;
+    text-transform: uppercase;
 "#;
 
 #[component]
-fn DragHandle() -> Element {
+fn DragHandle(title: String) -> Element {
     let global_drag_info = use_context::<Signal<GlobalDragState>>();
     let local_drag_info = use_context::<Signal<LocalDragState>>();
 
@@ -73,6 +80,7 @@ fn DragHandle() -> Element {
         div {
             style: DRAG_HANDLE_STYLES,
             onpointerdown: move |event| DraggableStateController::start_drag(event, global_drag_info, local_drag_info),
+            "{title}",
         }
     }
 }
