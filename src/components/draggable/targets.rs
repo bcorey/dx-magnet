@@ -1,4 +1,4 @@
-use crate::{components::draggable::*, dom_utilities::get_element_by_id};
+use crate::components::{dom_utilities::get_element_by_id, draggable::*};
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace};
 use web_sys::DomRect;

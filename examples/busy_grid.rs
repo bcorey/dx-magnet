@@ -3,8 +3,7 @@
 use dioxus::prelude::*;
 use tracing::Level;
 
-pub mod components;
-use components::*;
+use gridline::components::*;
 
 fn main() {
     // Init logger

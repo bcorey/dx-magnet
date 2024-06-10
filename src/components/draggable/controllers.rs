@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
 
-use crate::{dom_utilities::get_element_by_id, DraggableVariants};
+use crate::components::{dom_utilities::get_element_by_id, DraggableVariants};
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DragAreaStates {
