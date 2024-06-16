@@ -1,5 +1,3 @@
-use std::io::Error;
-
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
 
