@@ -1,5 +1,7 @@
 use crate::components::draggable::*;
+use crate::components::layout::Container;
 use dioxus::prelude::*;
+use dioxus_sdk::utils::window::use_window_resize_status;
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
@@ -7,12 +9,17 @@ pub fn DragArea(active: bool, children: Element) -> Element {
 
     let style = global_drag_info.read().get_drag_area_style();
 
+    let window_resize_status = use_window_resize_status();
+    tracing::info!("{:?}", window_resize_status);
     rsx! {
         div {
             style: style,
             onpointermove: move |event| DraggableStateController::update_drag_area(event, global_drag_info, active),
             onpointerup: move |_| DraggableStateController::stop_drag(global_drag_info),
-            {children},
+            Container {
+                columns: 8,
+                {children},
+            }
         }
     }
 }

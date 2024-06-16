@@ -38,9 +38,9 @@ pub fn DragTarget(children: Element) -> Element {
                 let snap_origin: Point2D<f64, ClientSpace> = Point2D::new(rect.x(), rect.y());
                 let snap_size: Point2D<f64, ClientSpace> =
                     Point2D::new(rect.width(), rect.height());
-                global_drag_state
-                    .write()
-                    .set_snap_info(Some((snap_origin, snap_size)));
+
+                let snap_info = SnapInfo::new(Some(id()), snap_origin, snap_size);
+                global_drag_state.write().set_snap_info(Some(snap_info));
             }
         } else {
             tracing::warn!("could not find drag target by ID");

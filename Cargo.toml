@@ -18,6 +18,7 @@ dioxus = { version = "0.5", features = ["web"] }
 tracing = "0.1.40"
 dioxus-logger = "0.5.0"
 uuid = { version = "1.8.0", features = ["v4", "js"] }
+dioxus-sdk = { path = "../sdk/sdk", features = ["use_window_size"] }
 
 [dependencies.web-sys]
 version = "0.3.69"

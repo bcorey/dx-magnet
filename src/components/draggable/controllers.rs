@@ -1,3 +1,5 @@
+use std::io::Error;
+
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
 
@@ -13,7 +15,7 @@ pub enum DragAreaStates {
 #[derive(Clone, PartialEq, Debug)]
 pub struct DragAreaActiveDragData {
     pub current_pos: Point2D<f64, ClientSpace>,
-    pub starting_data: RectData,
+    pub starting_data: DragOrigin,
 }
 
 impl DragAreaActiveDragData {
@@ -24,8 +26,23 @@ impl DragAreaActiveDragData {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DragEndings {
-    SNAPPING(RectData),
+    SNAPPING(SnapInfo),
     RELEASING(Point2D<f64, ClientSpace>),
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum DragOrigin {
+    Snapped(SnapInfo),
+    Free(RectData),
+}
+
+impl DragOrigin {
+    fn get_snap_info(&self) -> SnapInfo {
+        match self {
+            Self::Snapped(snap_info) => snap_info.clone(),
+            Self::Free(rect) => SnapInfo::new(None, rect.position, rect.size),
+        }
+    }
 }
 
 pub struct DraggableStateController;
@@ -36,13 +53,14 @@ impl DraggableStateController {
         mut global_drag_info: Signal<GlobalDragState>,
         mut local_drag_info: Signal<LocalDragState>,
     ) {
-        local_drag_info
+        let grab_data = local_drag_info
             .write()
-            .start_drag(event.data.element_coordinates());
-        let start_rect = local_drag_info.read().get_rect();
+            .start_drag(event.data.element_coordinates())
+            .expect("could not start drag");
+
         global_drag_info.write().start_drag(DragAreaActiveDragData {
             current_pos: event.data.client_coordinates(),
-            starting_data: start_rect,
+            starting_data: grab_data.drag_origin,
         });
     }
 
@@ -87,7 +105,7 @@ const DRAG_AREA_ACTIVE_STYLES: &str = r#"
 #[derive(Clone)]
 pub struct GlobalDragState {
     drag_state: DragAreaStates,
-    snap_info: Option<(Point2D<f64, ClientSpace>, Point2D<f64, ClientSpace>)>,
+    snap_info: Option<SnapInfo>,
 }
 
 impl GlobalDragState {
@@ -102,26 +120,18 @@ impl GlobalDragState {
         self.drag_state.clone()
     }
 
-    pub fn set_snap_info(
-        &mut self,
-        info: Option<(Point2D<f64, ClientSpace>, Point2D<f64, ClientSpace>)>,
-    ) {
+    pub fn set_snap_info(&mut self, info: Option<SnapInfo>) {
         self.snap_info = info;
     }
 
-    pub fn get_snap_info(&self) -> Option<(Point2D<f64, ClientSpace>, Point2D<f64, ClientSpace>)> {
-        return self.snap_info;
+    pub fn get_snap_info(&self) -> Option<SnapInfo> {
+        return self.snap_info.clone();
     }
 
     fn stop_drag(&mut self) {
         if let DragAreaStates::DRAGGING(drag_data) = self.drag_state.clone() {
-            self.drag_state = match self.snap_info {
-                Some((snap_origin, snap_size)) => {
-                    DragAreaStates::RELEASED(DragEndings::SNAPPING(RectData {
-                        position: snap_origin,
-                        size: snap_size,
-                    }))
-                }
+            self.drag_state = match self.snap_info.clone() {
+                Some(info) => DragAreaStates::RELEASED(DragEndings::SNAPPING(info)),
                 None => DragAreaStates::RELEASED(DragEndings::RELEASING(drag_data.current_pos)),
             };
         }
@@ -179,29 +189,29 @@ const SNAPPED_DRAGGABLE_STYLES: &str = r#"
     z-index: 100;
 "#;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 enum DraggableStates {
     GRABBED(DraggableGrabData),
     RESTING(DraggableRestStates),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 struct DraggableGrabData {
     grab_point: Point2D<f64, ElementSpace>,
-    pointer_position: Point2D<f64, ClientSpace>,
+    drag_origin: DragOrigin,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 enum DraggableRestStates {
     INITIAL,
     RELEASED(RectData),
     SNAPPED(DraggableSnapStates),
 }
 
-#[derive(Clone, PartialEq, Copy, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 enum DraggableSnapStates {
-    PREVIEW { from: RectData, to: RectData },
-    FINAL(RectData),
+    PREVIEW { from: SnapInfo, to: SnapInfo },
+    FINAL(SnapInfo),
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -221,6 +231,31 @@ impl RectData {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct SnapInfo {
+    rect: RectData,
+    target_id: Option<String>,
+}
+
+impl SnapInfo {
+    pub fn new(
+        target_id: Option<String>,
+        position: Point2D<f64, ClientSpace>,
+        size: Point2D<f64, ClientSpace>,
+    ) -> Self {
+        let rect = RectData { position, size };
+        Self { rect, target_id }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DragError(DragErrorType);
+
+#[derive(Debug, Clone)]
+pub enum DragErrorType {
+    IllegalDragStart,
+}
+
 pub struct LocalDragState {
     drag_state: DraggableStates,
     draggable_variant: DraggableVariants,
@@ -232,7 +267,7 @@ impl LocalDragState {
         Self {
             drag_state: DraggableStates::RESTING(DraggableRestStates::INITIAL),
             draggable_variant: variant,
-            id: id,
+            id,
         }
     }
 
@@ -240,13 +275,29 @@ impl LocalDragState {
         self.id.clone()
     }
 
-    fn start_drag(&mut self, grab_point: Point2D<f64, ElementSpace>) {
-        let start_location = self.get_rect().position;
+    fn start_drag(
+        &mut self,
+        grab_point: Point2D<f64, ElementSpace>,
+    ) -> Result<DraggableGrabData, DragError> {
+        let drag_origin = match self.drag_state.clone() {
+            DraggableStates::RESTING(rest) => match rest {
+                DraggableRestStates::SNAPPED(snap_data) => match snap_data {
+                    DraggableSnapStates::FINAL(final_snap) => DragOrigin::Snapped(final_snap),
+                    _ => return Err(DragError(DragErrorType::IllegalDragStart)),
+                },
+                _ => {
+                    let rect = self.get_rect();
+                    DragOrigin::Free(rect)
+                }
+            },
+            _ => return Err(DragError(DragErrorType::IllegalDragStart)),
+        };
         let grab_data = DraggableGrabData {
             grab_point,
-            pointer_position: start_location,
+            drag_origin,
         };
-        self.drag_state = DraggableStates::GRABBED(grab_data);
+        self.drag_state = DraggableStates::GRABBED(grab_data.clone());
+        Ok(grab_data)
     }
 
     pub fn get_rect(&self) -> RectData {
@@ -308,11 +359,11 @@ impl LocalDragState {
         snap_state: DraggableSnapStates,
         drag_end_data: DragEndings,
     ) {
-        let new_snap_state = match (snap_state, drag_end_data) {
+        let new_snap_state = match (snap_state.clone(), drag_end_data) {
             (DraggableSnapStates::PREVIEW { from, to }, DragEndings::SNAPPING(other_rect))
-                if other_rect.get_is_overlapping(from) =>
+                if other_rect.rect.get_is_overlapping(from.rect) =>
             {
-                match other_rect.get_is_overlapping(from) {
+                match other_rect.rect.get_is_overlapping(from.rect) {
                     true => DraggableSnapStates::FINAL(to),
                     false => DraggableSnapStates::FINAL(from),
                 }
@@ -335,15 +386,19 @@ impl LocalDragState {
             DraggableRestStates::INITIAL => self.get_rect(),
             DraggableRestStates::RELEASED(rect) => rect,
             DraggableRestStates::SNAPPED(snap_state) => match snap_state {
-                DraggableSnapStates::FINAL(rect) => rect,
-                DraggableSnapStates::PREVIEW { to, .. } => to,
+                DraggableSnapStates::FINAL(rect) => rect.rect,
+                DraggableSnapStates::PREVIEW { to, .. } => to.rect,
             },
         };
         let intersects_this_rect =
             this_rect.get_is_within_bounds(drag_area_dragging_state.current_pos);
         match (draggable_rest_state.clone(), intersects_this_rect) {
             (DraggableRestStates::INITIAL, _) => {
-                let snap_state = DraggableSnapStates::FINAL(this_rect);
+                let snap_state = DraggableSnapStates::FINAL(SnapInfo::new(
+                    None,
+                    this_rect.position,
+                    this_rect.size,
+                ));
                 self.get_next_snap_state(snap_state, intersects_this_rect, drag_area_dragging_state)
             }
             (DraggableRestStates::RELEASED(_), _) => (), // no action
@@ -363,14 +418,19 @@ impl LocalDragState {
         intersects_pointer: bool,
         drag_area_dragging_state: DragAreaActiveDragData,
     ) {
-        let snap_state = match (snap_state, intersects_pointer) {
-            (DraggableSnapStates::FINAL(rect), true) => DraggableSnapStates::PREVIEW {
-                from: rect,
-                to: drag_area_dragging_state.starting_data,
-            },
+        let snap_state = match (snap_state.clone(), intersects_pointer) {
+            (DraggableSnapStates::FINAL(info), true) => {
+                let start_snap = drag_area_dragging_state.starting_data.get_snap_info();
+                DraggableSnapStates::PREVIEW {
+                    from: info,
+                    to: start_snap,
+                }
+            }
             (DraggableSnapStates::PREVIEW { from, .. }, true) => DraggableSnapStates::FINAL(from),
             (DraggableSnapStates::PREVIEW { from, .. }, false)
-                if !from.get_is_within_bounds(drag_area_dragging_state.current_pos) =>
+                if !from
+                    .rect
+                    .get_is_within_bounds(drag_area_dragging_state.current_pos) =>
             {
                 DraggableSnapStates::FINAL(from)
             }
@@ -381,7 +441,7 @@ impl LocalDragState {
     }
 
     fn get_render_data(&self, global_drag_state: DragAreaStates) -> String {
-        match (self.drag_state, global_drag_state.clone()) {
+        match (self.drag_state.clone(), global_drag_state.clone()) {
             (DraggableStates::GRABBED(grab_data), DragAreaStates::DRAGGING(drag_data)) => {
                 self.location_with_grab_offset(grab_data.grab_point, drag_data.current_pos)
             }
@@ -414,10 +474,10 @@ impl LocalDragState {
             DraggableRestStates::INITIAL => self.initial_style(),
             DraggableRestStates::RELEASED(release_rect) => self.location(release_rect.position),
             DraggableRestStates::SNAPPED(DraggableSnapStates::FINAL(snap_rect)) => {
-                self.snapped_style(snap_rect)
+                self.snapped_style(snap_rect.rect)
             }
             DraggableRestStates::SNAPPED(DraggableSnapStates::PREVIEW { to, .. }) => {
-                self.snapped_style(to)
+                self.snapped_style(to.rect)
             }
         }
     }
@@ -428,8 +488,8 @@ impl LocalDragState {
         _drag_area_dragging_state: DragAreaActiveDragData,
     ) -> String {
         match draggable_snap_state {
-            DraggableSnapStates::FINAL(rect) => self.snapped_style(rect),
-            DraggableSnapStates::PREVIEW { to, .. } => self.snapped_style(to),
+            DraggableSnapStates::FINAL(rect) => self.snapped_style(rect.rect),
+            DraggableSnapStates::PREVIEW { to, .. } => self.snapped_style(to.rect),
         }
     }
 
