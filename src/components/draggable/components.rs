@@ -1,16 +1,27 @@
 use crate::components::draggable::*;
 use crate::components::layout::Container;
 use dioxus::prelude::*;
-use dioxus_sdk::utils::window::use_window_resize_status;
+use dioxus_sdk::utils::window::{
+    use_window_resize_status, use_window_size, WindowSize, WindowSizeWithStatus,
+};
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
     let global_drag_info = use_context_provider(|| Signal::new(GlobalDragState::new()));
 
     let style = global_drag_info.read().get_drag_area_style();
+    let window_size = use_window_resize_status();
+    let mut window_size_context = use_context_provider(|| {
+        Signal::new(WindowSizeWithStatus::NoChange(WindowSize {
+            height: 0u32,
+            width: 0u32,
+        }))
+    });
 
-    let window_resize_status = use_window_resize_status();
-    tracing::info!("{:?}", window_resize_status);
+    if let WindowSizeWithStatus::Resized(size) = window_size {
+        window_size_context.set(window_size);
+    }
+
     rsx! {
         div {
             style: style,
@@ -40,6 +51,16 @@ pub fn Draggable(
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
     let local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
     let global_drag_info = use_context::<Signal<GlobalDragState>>();
+
+    // let window_size_status = use_window_resize_status();
+    // if let WindowSizeWithStatus::Resized(_new_size) = window_size_status {
+    // }
+
+    let window_size_context = use_context::<Signal<WindowSizeWithStatus>>();
+    if let WindowSizeWithStatus::Resized(size) = window_size_context() {
+        DraggableStateController::update_draggables_on_window_resize(local_drag_info);
+    }
+
     let mut style =
         DraggableStateController::update_draggable_position(local_drag_info, global_drag_info);
 
@@ -52,7 +73,7 @@ pub fn Draggable(
             style: style,
             id: id,
             DragHandle {
-                title: title,
+                title: id,
             }
             {children}
         }

@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
+use web_sys::DomRect;
 
 use crate::components::{dom_utilities::get_element_by_id, DraggableVariants};
 
@@ -85,6 +86,10 @@ impl DraggableStateController {
 
     pub fn stop_drag(mut global_drag_info: Signal<GlobalDragState>) {
         global_drag_info.write().stop_drag();
+    }
+
+    pub fn update_draggables_on_window_resize(mut local_drag_info: Signal<LocalDragState>) {
+        local_drag_info.write().resize_snapped();
     }
 }
 
@@ -227,6 +232,13 @@ impl RectData {
     pub fn get_is_overlapping(&self, other: RectData) -> bool {
         self.get_is_within_bounds(other.position)
     }
+
+    pub fn from_bounding_box(web_sys_data: DomRect) -> Self {
+        let position: Point2D<f64, ClientSpace> = Point2D::new(web_sys_data.x(), web_sys_data.y());
+        let size: Point2D<f64, ClientSpace> =
+            Point2D::new(web_sys_data.width(), web_sys_data.height());
+        Self { position, size }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -271,6 +283,40 @@ impl LocalDragState {
 
     pub fn get_element_id(&self) -> String {
         self.id.clone()
+    }
+
+    fn resize_snapped(&mut self) {
+        tracing::info!("resizing {}", self.id);
+        if let DraggableStates::RESTING(rest_state) = &mut self.drag_state {
+            if let DraggableRestStates::SNAPPED(snap_state) = rest_state {
+                match snap_state {
+                    DraggableSnapStates::FINAL(snap_info) => {
+                        tracing::info!("snap info: {:?}", snap_info);
+                        let old_snap_info = snap_info.clone();
+                        if let Some(target_id) = snap_info.target_id.clone() {
+                            tracing::info!("some target id");
+                            let new_rect = get_element_by_id(target_id.as_str())
+                                .expect("could not get target by id")
+                                .get_bounding_client_rect();
+                            snap_info.rect = RectData::from_bounding_box(new_rect);
+                            tracing::info!("old vs new: {:?} {:?}", old_snap_info, snap_info);
+                            self.drag_state =
+                                DraggableStates::RESTING(DraggableRestStates::SNAPPED(
+                                    DraggableSnapStates::FINAL(snap_info.clone()),
+                                ));
+                        }
+                    }
+                    DraggableSnapStates::PREVIEW { to, .. } => {
+                        if let Some(target_id) = to.target_id.clone() {
+                            let new_rect = get_element_by_id(target_id.as_str())
+                                .expect("could not get target by id")
+                                .get_bounding_client_rect();
+                            to.rect = RectData::from_bounding_box(new_rect);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn start_drag(
@@ -349,7 +395,8 @@ impl LocalDragState {
             DragEndings::SNAPPING(snap_data) => DraggableStates::RESTING(
                 DraggableRestStates::SNAPPED(DraggableSnapStates::FINAL(snap_data)),
             ),
-        }
+        };
+        tracing::info!("data on drag end:  {:?}", self.drag_state);
     }
 
     fn update_state_on_other_drag_end(
