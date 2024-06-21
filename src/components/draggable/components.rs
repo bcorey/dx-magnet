@@ -1,26 +1,13 @@
 use crate::components::draggable::*;
 use crate::components::layout::Container;
 use dioxus::prelude::*;
-use dioxus_sdk::utils::window::{
-    use_window_resize_status, use_window_size, WindowSize, WindowSizeWithStatus,
-};
+use dioxus_sdk::utils::window::{use_window_resize_status, use_window_size, WindowSizeWithStatus};
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
     let global_drag_info = use_context_provider(|| Signal::new(GlobalDragState::new()));
 
     let style = global_drag_info.read().get_drag_area_style();
-    let window_size = use_window_resize_status();
-    let mut window_size_context = use_context_provider(|| {
-        Signal::new(WindowSizeWithStatus::NoChange(WindowSize {
-            height: 0u32,
-            width: 0u32,
-        }))
-    });
-
-    if let WindowSizeWithStatus::Resized(size) = window_size {
-        window_size_context.set(window_size);
-    }
 
     rsx! {
         div {
@@ -49,17 +36,20 @@ pub fn Draggable(
     children: Element,
 ) -> Element {
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
-    let local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
+    let mut local_drag_info =
+        use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
     let global_drag_info = use_context::<Signal<GlobalDragState>>();
 
-    // let window_size_status = use_window_resize_status();
-    // if let WindowSizeWithStatus::Resized(_new_size) = window_size_status {
-    // }
+    let window_size_info = use_window_size();
 
-    let window_size_context = use_context::<Signal<WindowSizeWithStatus>>();
-    if let WindowSizeWithStatus::Resized(size) = window_size_context() {
-        DraggableStateController::update_draggables_on_window_resize(local_drag_info);
-    }
+    use_memo(move || {
+        let _ctx = window_size_info();
+        local_drag_info.write().resize_snapped();
+    });
+
+    // if let WindowSizeWithStatus::Resized(_new_size) = window_size_info {
+    //     DraggableStateController::update_draggables_on_window_resize(&mut local_drag_info);
+    // }
 
     let mut style =
         DraggableStateController::update_draggable_position(local_drag_info, global_drag_info);

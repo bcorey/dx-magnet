@@ -88,7 +88,7 @@ impl DraggableStateController {
         global_drag_info.write().stop_drag();
     }
 
-    pub fn update_draggables_on_window_resize(mut local_drag_info: Signal<LocalDragState>) {
+    pub fn update_draggables_on_window_resize(local_drag_info: &mut Signal<LocalDragState>) {
         local_drag_info.write().resize_snapped();
     }
 }
@@ -187,7 +187,7 @@ const DRAGGABLE_STYLES: &str = r#"
 "#;
 
 const SNAPPED_DRAGGABLE_STYLES: &str = r#"
-    transition: left .1s ease-in-out, top .1s ease-in-out, width .1s ease-in-out .1s, height .1s ease-in-out .1s, box-shadow .1s ease-in-out;
+    /*transition: left .1s ease-in-out, top .1s ease-in-out, width .1s ease-in-out .1s, height .1s ease-in-out .1s, box-shadow .1s ease-in-out;*/
     box-shadow: 0 0 solid var(--hint);
     z-index: 100;
 "#;
@@ -285,8 +285,8 @@ impl LocalDragState {
         self.id.clone()
     }
 
-    fn resize_snapped(&mut self) {
-        tracing::info!("resizing {}", self.id);
+    pub fn resize_snapped(&mut self) {
+        //tracing::info!("resizing {}", self.id);
         if let DraggableStates::RESTING(rest_state) = &mut self.drag_state {
             if let DraggableRestStates::SNAPPED(snap_state) = rest_state {
                 match snap_state {
@@ -294,7 +294,6 @@ impl LocalDragState {
                         tracing::info!("snap info: {:?}", snap_info);
                         let old_snap_info = snap_info.clone();
                         if let Some(target_id) = snap_info.target_id.clone() {
-                            tracing::info!("some target id");
                             let new_rect = get_element_by_id(target_id.as_str())
                                 .expect("could not get target by id")
                                 .get_bounding_client_rect();
@@ -304,6 +303,8 @@ impl LocalDragState {
                                 DraggableStates::RESTING(DraggableRestStates::SNAPPED(
                                     DraggableSnapStates::FINAL(snap_info.clone()),
                                 ));
+
+                            tracing::info!("new drag state: {:?}", self.drag_state);
                         }
                     }
                     DraggableSnapStates::PREVIEW { to, .. } => {
@@ -519,6 +520,7 @@ impl LocalDragState {
             DraggableRestStates::INITIAL => self.initial_style(),
             DraggableRestStates::RELEASED(release_rect) => self.location(release_rect.position),
             DraggableRestStates::SNAPPED(DraggableSnapStates::FINAL(snap_rect)) => {
+                tracing::info!("getting style for rect: {:?} ", snap_rect.rect.clone());
                 self.snapped_style(snap_rect.rect)
             }
             DraggableRestStates::SNAPPED(DraggableSnapStates::PREVIEW { to, .. }) => {
