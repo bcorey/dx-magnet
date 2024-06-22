@@ -25,8 +25,8 @@ pub fn DragTarget(children: Element) -> Element {
     };
 
     let drag_state = global_drag_state.read().get_drag_state();
-    if let DragAreaStates::DRAGGING(drag_point) = drag_state {
-        if let Some(element) = get_element_by_id(id().as_str()) {
+    if let DragAreaStates::Dragging(drag_point) = drag_state {
+        if let Ok(element) = get_element_by_id(id().as_str()) {
             let rect = element.get_bounding_client_rect();
             let is_inside_rect = is_inside_rect(&rect, drag_point.current_pos);
             let state_has_changed = target_active() != is_inside_rect;
@@ -38,8 +38,11 @@ pub fn DragTarget(children: Element) -> Element {
                 let snap_origin: Point2D<f64, ClientSpace> = Point2D::new(rect.x(), rect.y());
                 let snap_size: Point2D<f64, ClientSpace> =
                     Point2D::new(rect.width(), rect.height());
-
-                let snap_info = SnapInfo::new(Some(id()), snap_origin, snap_size);
+                let rect = RectData {
+                    position: snap_origin,
+                    size: snap_size,
+                };
+                let snap_info = SnapInfo::new(Some(id()), rect);
                 global_drag_state.write().set_snap_info(Some(snap_info));
             }
         } else {

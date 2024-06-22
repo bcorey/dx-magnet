@@ -22,7 +22,7 @@ pub fn DragArea(active: bool, children: Element) -> Element {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DraggableVariants {
     DOCKED,
     FLOATING((f64, f64)),
@@ -36,20 +36,19 @@ pub fn Draggable(
     children: Element,
 ) -> Element {
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
-    let mut local_drag_info =
-        use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
+    let local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
     let global_drag_info = use_context::<Signal<GlobalDragState>>();
 
-    let window_size_info = use_window_size();
+    //let window_size_info = use_window_size();
 
-    use_memo(move || {
-        let _ctx = window_size_info();
-        local_drag_info.write().resize_snapped();
-    });
-
-    // if let WindowSizeWithStatus::Resized(_new_size) = window_size_info {
-    //     DraggableStateController::update_draggables_on_window_resize(&mut local_drag_info);
-    // }
+    // use_memo(move || {
+    //     let _ctx = window_size_info();
+    //     local_drag_info.write().resize_snapped();
+    // });
+    let window_size_info = use_window_resize_status();
+    if let WindowSizeWithStatus::Resized(_new_size) = window_size_info {
+        DraggableStateController::update_draggables_on_window_resize(local_drag_info);
+    }
 
     let mut style =
         DraggableStateController::update_draggable_position(local_drag_info, global_drag_info);
