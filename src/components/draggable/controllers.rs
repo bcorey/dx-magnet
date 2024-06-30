@@ -141,10 +141,7 @@ impl GlobalDragState {
     }
 
     fn is_dragging(&self) -> bool {
-        match self.drag_state {
-            DragAreaStates::Dragging(_) => true,
-            _ => false,
-        }
+        matches!(self.drag_state, DragAreaStates::Dragging(_))
     }
 
     fn start_drag(&mut self, drag_data: DragAreaActiveDragData) -> &mut Self {
