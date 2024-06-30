@@ -1,7 +1,7 @@
 use crate::components::draggable::*;
 use crate::components::layout::Container;
 use dioxus::prelude::*;
-use dioxus_sdk::utils::window::{use_window_resize_status, use_window_size, WindowSizeWithStatus};
+use dioxus_sdk::utils::window::{use_window_resize_status, WindowSizeWithStatus};
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {

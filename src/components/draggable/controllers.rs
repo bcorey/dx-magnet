@@ -2,7 +2,9 @@ use dioxus::prelude::*;
 use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
 use web_sys::DomRect;
 
-use crate::components::{dom_utilities::get_element_by_id, DraggableVariants};
+use crate::components::{
+    dom_utilities::get_element_by_id, DragError, DragErrorType, DraggableVariants,
+};
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DragAreaStates {
@@ -114,10 +116,7 @@ pub struct GlobalDragState {
 
 impl GlobalDragState {
     pub fn new() -> Self {
-        Self {
-            drag_state: DragAreaStates::Initial,
-            snap_info: None,
-        }
+        Self::default()
     }
 
     pub fn get_drag_state(&self) -> DragAreaStates {
@@ -129,7 +128,7 @@ impl GlobalDragState {
     }
 
     pub fn get_snap_info(&self) -> Option<SnapInfo> {
-        return self.snap_info.clone();
+        self.snap_info.clone()
     }
 
     fn stop_drag(&mut self) {
@@ -166,6 +165,15 @@ impl GlobalDragState {
         match self.is_dragging() {
             true => format!("{}{}", DRAG_AREA_BASE_STYLES, DRAG_AREA_ACTIVE_STYLES),
             false => DRAG_AREA_BASE_STYLES.to_string(),
+        }
+    }
+}
+
+impl Default for GlobalDragState {
+    fn default() -> Self {
+        Self {
+            drag_state: DragAreaStates::Initial,
+            snap_info: None,
         }
     }
 }
@@ -288,15 +296,6 @@ impl SnapInfo {
     pub fn new(target_id: Option<String>, rect: RectData) -> Self {
         Self { rect, target_id }
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct DragError(DragErrorType);
-
-#[derive(Debug, Clone)]
-pub enum DragErrorType {
-    IllegalDragStart,
-    DomRetrievalError,
 }
 
 #[derive(Debug)]
@@ -570,7 +569,7 @@ impl LocalDragState {
             }
             (
                 DraggableStates::Resting(DraggableRestStates::Snapped(snap_state)),
-                DragAreaStates::Dragging(drag_area_dragging_state),
+                DragAreaStates::Dragging(_),
             ) => self.get_render_data_for_avoidance_states(snap_state),
             (DraggableStates::Resting(DraggableRestStates::Initial), DragAreaStates::Initial) => {
                 self.initial_style()

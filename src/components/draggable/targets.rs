@@ -63,5 +63,5 @@ pub fn DragTarget(children: Element) -> Element {
 fn is_inside_rect(rect: &DomRect, point: Point2D<f64, ClientSpace>) -> bool {
     let is_in_x_bounds = point.x > rect.x() && point.x < rect.width() + rect.x();
     let is_in_y_bounds = point.y > rect.y() && point.y < rect.height() + rect.y();
-    return is_in_x_bounds && is_in_y_bounds;
+    is_in_x_bounds && is_in_y_bounds
 }

@@ -1,3 +1,6 @@
+use core::fmt;
+use std::fmt::{Display, Formatter};
+
 pub fn get_element_by_id(id: &str) -> Result<web_sys::Element, DomRetrievalError> {
     match web_sys::window()
         .and_then(|win| win.document())
@@ -13,6 +16,16 @@ pub struct DomRetrievalError(String);
 
 impl DomRetrievalError {
     fn new(id: String) -> Self {
-        DomRetrievalError(format!("Failed to find element with ID {}", id))
+        DomRetrievalError(id)
+    }
+}
+
+impl Display for DomRetrievalError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "DOM Retrieval Error: Failed to find element with ID {}",
+            self.0
+        )
     }
 }
