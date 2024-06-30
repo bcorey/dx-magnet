@@ -226,6 +226,7 @@ enum DraggableSnapStates {
 struct DraggableTransitionData {
     from: SnapInfo,
     to: SnapInfo,
+    mode: DraggableTransitionMode,
 }
 
 impl DraggableTransitionData {
@@ -233,6 +234,22 @@ impl DraggableTransitionData {
         DraggableTransitionData {
             from: self.to.clone(),
             to: self.from.clone(),
+            mode: self.mode.reverse(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+enum DraggableTransitionMode {
+    Avoidance,
+    Resting,
+}
+
+impl DraggableTransitionMode {
+    fn reverse(&self) -> Self {
+        match self {
+            Self::Avoidance => Self::Resting,
+            Self::Resting => Self::Avoidance,
         }
     }
 }
@@ -378,7 +395,10 @@ impl LocalDragState {
             return DraggableSnapStates::Transitioning(transition);
         }
 
-        return DraggableSnapStates::Final(transition.to);
+        match transition.mode {
+            DraggableTransitionMode::Avoidance => DraggableSnapStates::Preview(transition),
+            DraggableTransitionMode::Resting => DraggableSnapStates::Final(transition.to),
+        }
     }
 
     fn update_state(&mut self, global_drag_state: DragAreaStates) {
@@ -446,6 +466,7 @@ impl LocalDragState {
             DraggableSnapStates::Transitioning(DraggableTransitionData {
                 from: SnapInfo::new(None, from),
                 to: snap_data,
+                mode: DraggableTransitionMode::Resting,
             }),
         ))
     }
@@ -518,6 +539,7 @@ impl LocalDragState {
                 DraggableSnapStates::Transitioning(DraggableTransitionData {
                     from: info,
                     to: start_snap,
+                    mode: DraggableTransitionMode::Avoidance,
                 })
             }
             (DraggableSnapStates::Preview(transition), true) => {

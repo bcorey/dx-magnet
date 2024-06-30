@@ -1,7 +1,7 @@
 [application]
 
 # App (Project) Name
-name = "red-nylon"
+name = "gridline"
 
 # Dioxus App Default Platform
 # desktop, web
@@ -16,7 +16,7 @@ asset_dir = "assets"
 [web.app]
 
 # HTML title tag content
-title = "red-nylon"
+title = "gridline"
 
 [web.watcher]
 
