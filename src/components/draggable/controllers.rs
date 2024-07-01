@@ -1,10 +1,10 @@
-use dioxus::prelude::*;
-use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
-use web_sys::DomRect;
-
 use crate::components::{
     dom_utilities::get_element_by_id, DragError, DragErrorType, DraggableVariants,
 };
+use dioxus::prelude::*;
+use dioxus_elements::geometry::{euclid::Point2D, ClientSpace, ElementSpace};
+
+use super::{DraggableTransitionData, DraggableTransitionMode, RectData};
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DragAreaStates {
@@ -76,15 +76,6 @@ impl DraggableStateController {
         }
         let point = event.data.client_coordinates();
         global_drag_info.write().update_drag(point);
-    }
-
-    pub fn update_draggable_position(
-        mut local_drag_info: Signal<LocalDragState>,
-        global_drag_info: Signal<GlobalDragState>,
-    ) -> String {
-        local_drag_info
-            .write()
-            .on_component_update(global_drag_info.read().get_drag_state())
     }
 
     pub fn stop_drag(mut global_drag_info: Signal<GlobalDragState>) {
@@ -198,7 +189,6 @@ const SNAPPED_DRAGGABLE_STYLES: &str = r#"
 "#;
 
 const TRANSITIONING_DRAGGABLE_STYLES: &str = r#"
-    transition: left .1s ease-in-out, top .1s ease-in-out, width .1s ease-in-out .1s, height .1s ease-in-out .1s, box-shadow .1s ease-in-out;
 "#;
 
 #[derive(Clone, Debug)]
@@ -227,66 +217,10 @@ enum DraggableSnapStates {
     Transitioning(DraggableTransitionData),
 }
 
-#[derive(Clone, PartialEq, Debug)]
-struct DraggableTransitionData {
-    from: SnapInfo,
-    to: SnapInfo,
-    mode: DraggableTransitionMode,
-}
-
-impl DraggableTransitionData {
-    fn reverse(&self) -> DraggableTransitionData {
-        DraggableTransitionData {
-            from: self.to.clone(),
-            to: self.from.clone(),
-            mode: self.mode.reverse(),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Debug)]
-enum DraggableTransitionMode {
-    Avoidance,
-    Resting,
-}
-
-impl DraggableTransitionMode {
-    fn reverse(&self) -> Self {
-        match self {
-            Self::Avoidance => Self::Resting,
-            Self::Resting => Self::Avoidance,
-        }
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct RectData {
-    pub position: Point2D<f64, ClientSpace>,
-    pub size: Point2D<f64, ClientSpace>,
-}
-
-impl RectData {
-    pub fn get_is_within_bounds<U>(&self, point: Point2D<f64, U>) -> bool {
-        (point.x >= self.position.x && point.x <= self.position.x + self.size.x)
-            && (point.y >= self.position.y && point.y <= self.position.y + self.size.y)
-    }
-
-    pub fn is_overlapping(&self, other: RectData) -> bool {
-        self.get_is_within_bounds(other.position)
-    }
-
-    pub fn from_bounding_box(web_sys_data: DomRect) -> Self {
-        let position: Point2D<f64, ClientSpace> = Point2D::new(web_sys_data.x(), web_sys_data.y());
-        let size: Point2D<f64, ClientSpace> =
-            Point2D::new(web_sys_data.width(), web_sys_data.height());
-        Self { position, size }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct SnapInfo {
-    rect: RectData,
-    target_id: Option<String>,
+    pub rect: RectData,
+    pub target_id: Option<String>,
 }
 
 impl SnapInfo {
@@ -331,7 +265,7 @@ impl LocalDragState {
             self.drag_state = DraggableStates::Resting(DraggableRestStates::Snapped(
                 DraggableSnapStates::Final(new_snap_info),
             ));
-            tracing::info!("new drag state: {:?}", self.drag_state);
+            tracing::info!("resized: {:?}", self.drag_state);
         }
     }
 
@@ -385,19 +319,18 @@ impl LocalDragState {
         RectData { position, size }
     }
 
-    fn poll_transition(&mut self, transition: DraggableTransitionData) -> DraggableSnapStates {
-        let rect = self.get_rect();
-        if transition.to.rect != rect {
-            return DraggableSnapStates::Transitioning(transition);
-        }
-
-        match transition.mode {
-            DraggableTransitionMode::Avoidance => DraggableSnapStates::Preview(transition),
-            DraggableTransitionMode::Resting => DraggableSnapStates::Final(transition.to),
+    fn poll_transition(&mut self, mut transition: DraggableTransitionData) -> DraggableSnapStates {
+        let is_finished = transition.poll();
+        match is_finished {
+            true => match transition.mode {
+                DraggableTransitionMode::Avoidance => DraggableSnapStates::Preview(transition),
+                DraggableTransitionMode::Resting => DraggableSnapStates::Final(transition.to),
+            },
+            false => DraggableSnapStates::Transitioning(transition),
         }
     }
 
-    fn update_state(&mut self, global_drag_state: DragAreaStates) {
+    pub fn update_state(&mut self, global_drag_state: DragAreaStates) {
         match (self.drag_state.clone(), global_drag_state) {
             (
                 DraggableStates::Resting(draggable_rest_state),
@@ -414,6 +347,14 @@ impl LocalDragState {
                 DraggableStates::Grabbed(draggable_grab_data),
                 DragAreaStates::Released(drag_area_dragging_state),
             ) => self.update_state_on_self_drag_end(draggable_grab_data, drag_area_dragging_state),
+            (
+                DraggableStates::Resting(DraggableRestStates::Snapped(
+                    DraggableSnapStates::Transitioning(transition),
+                )),
+                _,
+            ) => {
+                self.poll_transition(transition);
+            }
             (_, _) => (),
         };
     }
@@ -459,11 +400,12 @@ impl LocalDragState {
             DragOrigin::Snapped(og_snap) => og_snap.rect,
         };
         DraggableStates::Resting(DraggableRestStates::Snapped(
-            DraggableSnapStates::Transitioning(DraggableTransitionData {
-                from: SnapInfo::new(None, from),
-                to: snap_data,
-                mode: DraggableTransitionMode::Resting,
-            }),
+            DraggableSnapStates::Transitioning(DraggableTransitionData::new(
+                SnapInfo::new(None, from),
+                snap_data,
+                DraggableTransitionMode::Resting,
+                self.id.clone(),
+            )),
         ))
     }
 
@@ -476,14 +418,22 @@ impl LocalDragState {
             (
                 DraggableSnapStates::Preview(preview_data),
                 DragEndings::Snapping(other_snap_info),
-            ) if other_snap_info.rect.is_overlapping(preview_data.from.rect) => {
-                match other_snap_info.rect.is_overlapping(preview_data.from.rect) {
-                    true => DraggableSnapStates::Transitioning(preview_data),
-                    false => DraggableSnapStates::Transitioning(preview_data.reverse()),
-                }
-            }
+            ) => match other_snap_info.rect.is_overlapping(preview_data.from.rect) {
+                true => DraggableSnapStates::Final(preview_data.to),
+                false => DraggableSnapStates::Transitioning(preview_data.reverse()),
+            },
             (DraggableSnapStates::Preview(preview_data), DragEndings::Releasing(_)) => {
                 DraggableSnapStates::Transitioning(preview_data.reverse())
+            }
+            (DraggableSnapStates::Transitioning(transition), _) => {
+                let res = self.poll_transition(transition);
+                match res {
+                    DraggableSnapStates::Preview(preview) => DraggableSnapStates::Final(preview.to),
+                    DraggableSnapStates::Transitioning(transition) => {
+                        DraggableSnapStates::Final(transition.to)
+                    }
+                    _ => res,
+                }
             }
             (_, _) => snap_state,
         };
@@ -502,7 +452,7 @@ impl LocalDragState {
             DraggableRestStates::Snapped(snap_state) => match snap_state {
                 DraggableSnapStates::Final(rect) => rect.rect,
                 DraggableSnapStates::Preview(transition) => transition.to.rect,
-                DraggableSnapStates::Transitioning(transition) => transition.to.rect,
+                DraggableSnapStates::Transitioning(transition) => transition.current,
             },
         };
         let intersects_this_rect =
@@ -532,11 +482,12 @@ impl LocalDragState {
         let snap_state = match (snap_state.clone(), intersects_pointer) {
             (DraggableSnapStates::Final(info), true) => {
                 let start_snap = drag_area_dragging_state.starting_data.get_snap_info();
-                DraggableSnapStates::Transitioning(DraggableTransitionData {
-                    from: info,
-                    to: start_snap,
-                    mode: DraggableTransitionMode::Avoidance,
-                })
+                DraggableSnapStates::Transitioning(DraggableTransitionData::new(
+                    info,
+                    start_snap,
+                    DraggableTransitionMode::Avoidance,
+                    self.id.clone(),
+                ))
             }
             (DraggableSnapStates::Preview(transition), true) => {
                 DraggableSnapStates::Transitioning(transition.reverse())
@@ -556,7 +507,7 @@ impl LocalDragState {
         self.drag_state = DraggableStates::Resting(DraggableRestStates::Snapped(snap_state));
     }
 
-    fn get_render_data(&self, global_drag_state: DragAreaStates) -> String {
+    pub fn get_render_data(&self, global_drag_state: DragAreaStates) -> String {
         match (self.drag_state.clone(), global_drag_state.clone()) {
             (DraggableStates::Grabbed(grab_data), DragAreaStates::Dragging(drag_data)) => {
                 self.location_with_grab_offset(grab_data.grab_point, drag_data.current_pos)
@@ -603,14 +554,9 @@ impl LocalDragState {
             DraggableSnapStates::Final(rect) => self.snapped_style(rect.rect),
             DraggableSnapStates::Preview(transition) => self.snapped_style(transition.to.rect),
             DraggableSnapStates::Transitioning(transition) => {
-                self.snapped_transitioning_style(transition.to.rect)
+                self.snapped_transitioning_style(transition.current)
             }
         }
-    }
-
-    pub fn on_component_update(&mut self, global_drag_state: DragAreaStates) -> String {
-        self.update_state(global_drag_state.clone());
-        self.get_render_data(global_drag_state)
     }
 
     fn location_with_grab_offset(

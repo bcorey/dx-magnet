@@ -1,7 +1,7 @@
 use crate::components::draggable::*;
 use crate::components::layout::Container;
 use dioxus::prelude::*;
-use dioxus_sdk::utils::window::{use_window_resize_status, WindowSizeWithStatus};
+use dioxus_sdk::utils::window::use_window_size;
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
@@ -32,34 +32,39 @@ pub enum DraggableVariants {
 pub fn Draggable(
     variant: DraggableVariants,
     title: String,
-    style_opt: Option<String>,
+    style: Option<String>,
     children: Element,
 ) -> Element {
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
-    let local_drag_info = use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
+    let mut local_drag_info =
+        use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
     let global_drag_info = use_context::<Signal<GlobalDragState>>();
 
-    //let window_size_info = use_window_size();
+    let window_size_info = use_window_size();
 
-    // use_memo(move || {
-    //     let _ctx = window_size_info();
-    //     local_drag_info.write().resize_snapped();
-    // });
-    let window_size_info = use_window_resize_status();
-    if let WindowSizeWithStatus::Resized(_new_size) = window_size_info {
-        DraggableStateController::update_draggables_on_window_resize(local_drag_info);
-    }
+    use_memo(move || {
+        let _ctx = window_size_info();
+        local_drag_info.write().resize_snapped();
+    });
 
-    let mut style =
-        DraggableStateController::update_draggable_position(local_drag_info, global_drag_info);
+    local_drag_info
+        .write()
+        .update_state(global_drag_info.read().get_drag_state());
 
-    if let Some(styles) = style_opt {
-        style = format!("{}\n{}", styles, style);
-    }
+    let display_state = use_memo(move || {
+        let mut display_state = local_drag_info
+            .read()
+            .get_render_data(global_drag_info.read().get_drag_state());
+
+        if let Some(user_style) = &style {
+            display_state = format!("{}\n{}", display_state, user_style);
+        }
+        display_state
+    });
 
     rsx! {
         div {
-            style: style,
+            style: display_state,
             id: id,
             DragHandle {
                 title: id,
