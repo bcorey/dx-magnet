@@ -3,19 +3,26 @@ use crate::components::layout::Container;
 use animatable::components::Animatable;
 use animatable::controllers::AnimationController;
 use dioxus::prelude::*;
-use dioxus_elements::geometry::euclid::Rect;
 use dioxus_sdk::utils::window::use_window_size;
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
-    let global_drag_info = use_context_provider(|| Signal::new(GlobalDragState::new()));
+    let mut global_drag_info = use_context_provider(|| Signal::new(GlobalDragState::new()));
 
     let style = use_memo(move || global_drag_info.read().get_drag_area_style());
+
+    let mut on_pointer_move = move |event: PointerEvent| {
+        if !active || !global_drag_info.peek().is_dragging() {
+            return;
+        }
+        let point = event.data.client_coordinates();
+        global_drag_info.write().update_drag(point.cast_unit());
+    };
 
     rsx! {
         div {
             style: style,
-            onpointermove: move |event| DraggableStateController::update_drag_area(event, global_drag_info, active),
+            onpointermove: move |event| on_pointer_move(event),
             onpointerup: move |_| DraggableStateController::stop_drag(global_drag_info),
             Container {
                 columns: 8,
@@ -48,6 +55,7 @@ pub fn Draggable(
         let rect = animation_controller.read().get_rect();
         if local_drag_info.peek().get_rect() != rect {
             local_drag_info.write().set_rect(rect);
+            tracing::info!("wrote rect");
         }
     });
 
@@ -66,7 +74,7 @@ pub fn Draggable(
     let display_state: String = use_memo(move || {
         let mut display_state = local_drag_info
             .read()
-            .get_render_data(global_drag_info.read().get_drag_state());
+            .get_render_data(global_drag_info.peek().get_drag_state());
 
         display_state
             .rect

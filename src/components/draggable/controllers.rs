@@ -66,18 +66,6 @@ impl DraggableStateController {
         }
     }
 
-    pub fn update_drag_area(
-        event: PointerEvent,
-        mut global_drag_info: Signal<GlobalDragState>,
-        active: bool,
-    ) {
-        if !active || !global_drag_info.read().is_dragging() {
-            return;
-        }
-        let point = event.data.client_coordinates();
-        global_drag_info.write().update_drag(point.cast_unit());
-    }
-
     pub fn stop_drag(mut global_drag_info: Signal<GlobalDragState>) {
         global_drag_info.write().stop_drag();
     }
@@ -131,18 +119,18 @@ impl GlobalDragState {
         }
     }
 
-    fn is_dragging(&self) -> bool {
+    pub fn is_dragging(&self) -> bool {
         matches!(self.drag_state, DragAreaStates::Dragging(_))
     }
 
-    fn start_drag(&mut self, drag_data: DragAreaActiveDragData) -> &mut Self {
+    pub fn start_drag(&mut self, drag_data: DragAreaActiveDragData) -> &mut Self {
         if let DragAreaStates::Initial | DragAreaStates::Released(_) = self.drag_state {
             self.drag_state = DragAreaStates::Dragging(drag_data);
         }
         self
     }
 
-    fn update_drag(&mut self, pos: Point2D<f64, f64>) {
+    pub fn update_drag(&mut self, pos: Point2D<f64, f64>) {
         if let DragAreaStates::Dragging(mut drag_data) = self.drag_state.clone() {
             drag_data.update_current_pos(pos);
             self.drag_state = DragAreaStates::Dragging(drag_data);
