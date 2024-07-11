@@ -45,6 +45,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 
 [[package]]
+name = "animatable"
+version = "0.1.0"
+dependencies = [
+ "dioxus",
+ "dioxus-logger",
+ "dioxus-sdk 0.5.0 (git+https://github.com/DioxusLabs/sdk.git)",
+ "futures-util",
+ "gloo-timers 0.3.0",
+ "simple-easing",
+ "tracing",
+ "web-time",
+]
+
+[[package]]
 name = "anymap2"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1086,6 +1100,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "dioxus-sdk"
+version = "0.5.0"
+source = "git+https://github.com/DioxusLabs/sdk.git#fa662f734cc2d0f59ca85da0072c067b3a46df3e"
+dependencies = [
+ "cfg-if",
+ "dioxus",
+ "futures",
+ "gloo-timers 0.3.0",
+ "js-sys",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "dioxus-signals"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1746,7 +1775,7 @@ dependencies = [
  "gloo-net 0.3.1",
  "gloo-render",
  "gloo-storage",
- "gloo-timers",
+ "gloo-timers 0.2.6",
  "gloo-utils 0.1.7",
  "gloo-worker",
 ]
@@ -1890,6 +1919,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gloo-timers"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "gloo-utils"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1947,9 +1988,10 @@ dependencies = [
 name = "gridline"
 version = "0.1.0"
 dependencies = [
+ "animatable",
  "dioxus",
  "dioxus-logger",
- "dioxus-sdk",
+ "dioxus-sdk 0.5.0",
  "tracing",
  "uuid",
  "web-sys",
@@ -3430,6 +3472,12 @@ name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
+
+[[package]]
+name = "simple-easing"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "832ddd7df0d98d6fd93b973c330b7c8e0742d5cb8f1afc7dea89dba4d2531aa1"
 
 [[package]]
 name = "siphasher"

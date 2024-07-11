@@ -12,6 +12,3 @@ pub use drag_error::*;
 
 mod drag_transition;
 use drag_transition::*;
-
-mod geometry;
-use geometry::*;

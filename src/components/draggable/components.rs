@@ -1,13 +1,16 @@
 use crate::components::draggable::*;
 use crate::components::layout::Container;
+use animatable::components::Animatable;
+use animatable::controllers::AnimationController;
 use dioxus::prelude::*;
+use dioxus_elements::geometry::euclid::Rect;
 use dioxus_sdk::utils::window::use_window_size;
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
     let global_drag_info = use_context_provider(|| Signal::new(GlobalDragState::new()));
 
-    let style = global_drag_info.read().get_drag_area_style();
+    let style = use_memo(move || global_drag_info.read().get_drag_area_style());
 
     rsx! {
         div {
@@ -39,33 +42,46 @@ pub fn Draggable(
     let mut local_drag_info =
         use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
     let global_drag_info = use_context::<Signal<GlobalDragState>>();
+    let mut animation_controller = use_signal(|| AnimationController::default());
+
+    use_effect(move || {
+        let rect = animation_controller.read().get_rect();
+        if local_drag_info.peek().get_rect() != rect {
+            local_drag_info.write().set_rect(rect);
+        }
+    });
 
     let window_size_info = use_window_size();
 
-    use_memo(move || {
-        let _ctx = window_size_info();
+    use_effect(move || {
+        let _trigger = window_size_info.read();
         local_drag_info.write().resize_snapped();
     });
 
-    local_drag_info
-        .write()
-        .update_state(global_drag_info.read().get_drag_state());
+    use_effect(move || {
+        let global = global_drag_info.read().get_drag_state();
+        local_drag_info.write().update_state(global);
+    });
 
-    let display_state = use_memo(move || {
+    let display_state: String = use_memo(move || {
         let mut display_state = local_drag_info
             .read()
             .get_render_data(global_drag_info.read().get_drag_state());
 
-        if let Some(user_style) = &style {
-            display_state = format!("{}\n{}", display_state, user_style);
-        }
         display_state
-    });
-
+            .rect
+            .map(|rect| animation_controller.write().set_rect(rect));
+        if let Some(user_style) = &style {
+            display_state.style = format!("{}\n{}", display_state.style, user_style);
+        }
+        display_state.style
+    })
+    .to_string();
+    tracing::info!("{}", &display_state);
     rsx! {
-        div {
+        Animatable {
+            controller: animation_controller,
             style: display_state,
-            id: id,
             DragHandle {
                 title: id,
             }
