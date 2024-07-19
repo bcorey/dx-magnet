@@ -3,6 +3,7 @@ use crate::components::layout::Container;
 use animatable::components::Animatable;
 use animatable::controllers::AnimationController;
 use dioxus::prelude::*;
+use dioxus_elements::geometry::euclid::Rect;
 use dioxus_sdk::utils::window::use_window_size;
 
 #[component]
@@ -48,37 +49,76 @@ pub fn Draggable(
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
     let mut local_drag_info =
         use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
-    let global_drag_info = use_context::<Signal<GlobalDragState>>();
+    let global_drag_info: Signal<GlobalDragState> = use_context::<Signal<GlobalDragState>>();
     let mut animation_controller = use_signal(|| AnimationController::default());
+    let current_rect = use_memo(move || animation_controller.read().get_rect());
+    let animation_is_active = use_memo(move || !animation_controller.read().is_finished());
 
+    // window size
+    let window_size_info = use_window_size();
     use_effect(move || {
-        let rect = animation_controller.read().get_rect();
-        if local_drag_info.peek().get_rect() != rect {
-            local_drag_info.write().set_rect(rect);
-            tracing::info!("wrote rect");
+        let _trigger = window_size_info.read();
+        if let Some(rect) = current_rect.peek().clone() {
+            local_drag_info.write().resize_snapped(rect);
+        }
+    });
+    // should only write to local state once on mount
+    use_effect(move || {
+        if let Some(rect) = current_rect.read().clone() {
+            if local_drag_info.peek().get_is_uninitialized() {
+                local_drag_info.write().initialize(rect);
+            }
         }
     });
 
-    let window_size_info = use_window_size();
-
     use_effect(move || {
-        let _trigger = window_size_info.read();
-        local_drag_info.write().resize_snapped();
-    });
-
-    use_effect(move || {
+        if animation_is_active() {
+            tracing::info!("no update for draggable state while animation is active");
+            return;
+        }
+        let rect = match current_rect.read().clone() {
+            Some(rect) => rect,
+            None => {
+                tracing::error!("no current rect for draggable");
+                return;
+            }
+        };
         let global = global_drag_info.read().get_drag_state();
-        local_drag_info.write().update_state(global);
+        local_drag_info.write().update_state(global, rect);
     });
+
+    let mut send_position_data = move |position_data: DraggablePositionData| {
+        if !animation_controller.peek().is_finished() {
+            return;
+        }
+
+        match position_data {
+            DraggablePositionData::Anim(anim) => {
+                tracing::info!("ordering animation {:?}", anim.clone());
+                animation_controller.write().play_now(anim);
+            }
+            DraggablePositionData::Rect(rect)
+                if animation_controller.peek().get_rect().is_none()
+                    || animation_controller
+                        .peek()
+                        .get_rect()
+                        .is_some_and(|controller_rect| controller_rect != rect) =>
+            {
+                animation_controller.write().set_rect(rect);
+                tracing::info!("set rect to:{:?}", rect.origin);
+            }
+            _ => (),
+        };
+    };
 
     let display_state: String = use_memo(move || {
-        let mut display_state = local_drag_info
-            .read()
-            .get_render_data(global_drag_info.peek().get_drag_state());
-
-        display_state
-            .rect
-            .map(|rect| animation_controller.write().set_rect(rect));
+        let global_state = global_drag_info.peek().get_drag_state();
+        let rect = current_rect
+            .peek()
+            .clone()
+            .map_or(Rect::zero(), |rect| rect);
+        let mut display_state = local_drag_info.read().get_render_data(global_state, rect);
+        send_position_data(display_state.position_data.clone());
         if let Some(user_style) = &style {
             display_state.style = format!("{}\n{}", display_state.style, user_style);
         }

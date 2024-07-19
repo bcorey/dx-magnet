@@ -17,8 +17,13 @@ fn App() -> Element {
         link { rel: "stylesheet", href: "styles.css" }
         DragArea {
             active: true,
+            // Cell {
+            //     span: 1..2,
+            //     rows: 1,
+            //     columns: 1,
+            // }
             Cell {
-                span: 1..2,
+                span: 3..2,
                 rows: 1,
                 columns: 1,
                 DragTarget {
@@ -29,6 +34,9 @@ fn App() -> Element {
                         }
                     }
                 }
+            }
+            Cell {
+                span: 3..2
             }
         }
     }
