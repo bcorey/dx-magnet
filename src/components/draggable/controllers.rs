@@ -186,19 +186,19 @@ const SNAPPED_DRAGGABLE_STYLES: &str = r#"
 const TRANSITIONING_DRAGGABLE_STYLES: &str = r#"
 "#;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum DraggableStates {
     Grabbed(DraggableGrabData),
     Resting(DraggableRestStates),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct DraggableGrabData {
     grab_point: Point2D<f64, ElementSpace>,
     drag_origin: DragOrigin,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum DraggableRestStates {
     Initial,
     Released(Rect<f64, f64>),
@@ -387,7 +387,9 @@ impl LocalDragState {
         };
 
         let new = self.drag_state.clone();
-        tracing::info!("old: {:?} /n /n vs new: {:?}", old, new);
+        if (old != new) {
+            tracing::info!("old: {:?} /n /n vs new: {:?}", old, new);
+        }
     }
 
     fn update_state_on_self_drag_end(

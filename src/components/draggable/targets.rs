@@ -19,29 +19,31 @@ const DRAG_TARGET_ACTIVE_STYLE: &str = r#"
 pub fn DragTarget(children: Element) -> Element {
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
     let mut global_drag_state = use_context::<Signal<GlobalDragState>>();
-    let mut target_active = use_signal(|| false);
 
     let mut target_div = use_signal(|| None as Option<Rc<MountedData>>);
     let mut target_rect = use_signal(|| None as Option<Rect<f64, f64>>);
 
-    let style = match target_active() {
-        true => format!("{}{}", DRAG_TARGET_STYLE, DRAG_TARGET_ACTIVE_STYLE),
-        false => DRAG_TARGET_STYLE.to_string(),
-    };
-
     let read_target_rect = move || async move {
+        tracing::info!("reading target rect");
         let read = target_div.read();
         let client_rect = read.as_ref().map(|el| el.get_client_rect());
 
         if let Some(client_rect) = client_rect {
             if let Ok(rect) = client_rect.await {
+                tracing::info!("setting target rect");
                 target_rect.set(Some(rect));
             }
         }
     };
 
-    let window_size = use_window_size();
+    use_effect(move || {
+        let _trig = target_div.read();
+        spawn(async move {
+            read_target_rect().await;
+        });
+    });
 
+    let window_size = use_window_size();
     use_effect(move || {
         let _trigger = window_size.read();
         spawn(async move {
@@ -49,24 +51,48 @@ pub fn DragTarget(children: Element) -> Element {
         });
     });
 
-    use_effect(move || {
+    let target_is_active = use_memo(move || {
         let drag_state = global_drag_state.read().get_drag_state();
-        if let DragAreaStates::Dragging(drag_point) = drag_state {
-            if let Some(rect) = target_rect.peek().as_ref() {
-                let is_inside_rect = rect.contains(drag_point.current_pos.cast_unit());
-                let state_has_changed = target_active() != is_inside_rect;
-                let active = target_active();
-                if state_has_changed {
-                    target_active.set(!active);
+        let target_rect = match target_rect.peek().clone() {
+            Some(rect) => rect,
+            None => return false,
+        };
+        match drag_state {
+            DragAreaStates::Dragging(drag_info) => {
+                target_rect.contains(drag_info.current_pos.cast_unit())
+            }
+            _ => false,
+        }
+    });
+
+    use_effect(move || {
+        let active = target_is_active();
+        let rect = match target_rect.peek().clone() {
+            Some(rect) => rect,
+            None => return,
+        };
+        if active {
+            let snap_info = SnapInfo::new(Some(id.peek().clone()), rect);
+            global_drag_state.write().set_snap_info(Some(snap_info))
+        } else {
+            let drag_state = global_drag_state.peek().get_drag_state();
+            match drag_state {
+                DragAreaStates::Dragging(_drag_info) => {
+                    let info_opt = global_drag_state.peek().get_snap_info();
+                    if let Some(info) = info_opt {
+                        if info.rect == rect {
+                            global_drag_state.write().set_snap_info(None);
+                        }
+                    }
                 }
-                if state_has_changed && !active {
-                    let snap_info = SnapInfo::new(Some(id()), *rect);
-                    global_drag_state.write().set_snap_info(Some(snap_info));
-                }
-            } else {
-                tracing::warn!("could not find drag target by ID");
+                _ => (),
             }
         }
+    });
+
+    let style = use_memo(move || match target_is_active() {
+        true => format!("{}{}", DRAG_TARGET_STYLE, DRAG_TARGET_ACTIVE_STYLE),
+        false => DRAG_TARGET_STYLE.to_string(),
     });
 
     rsx! {
