@@ -1,15 +1,19 @@
+use std::collections::HashMap;
+
 use crate::components::draggable::*;
 use crate::components::layout::Container;
 use animatable::components::Animatable;
 use animatable::controllers::AnimationController;
 use dioxus::prelude::*;
 use dioxus_elements::geometry::euclid::Rect;
+use dioxus_logger::init;
 use dioxus_sdk::utils::window::use_window_size;
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
     let mut global_drag_info = use_context_provider(|| Signal::new(GlobalDragState::new()));
-
+    let drag_area_grid =
+        use_context_provider(|| Signal::new(HashMap::new() as HashMap<String, Rect<f64, f64>>));
     let style = use_memo(move || global_drag_info.read().get_drag_area_style());
 
     let mut on_pointer_move = move |event: PointerEvent| {
@@ -50,25 +54,23 @@ pub fn Draggable(
     let mut local_drag_info =
         use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
     let global_drag_info: Signal<GlobalDragState> = use_context::<Signal<GlobalDragState>>();
+    let drag_area_grid = use_context::<Signal<HashMap<String, Rect<f64, f64>>>>();
     let mut animation_controller = use_signal(|| AnimationController::default());
     let current_rect = use_memo(move || animation_controller.read().get_rect());
     let animation_is_active = use_memo(move || !animation_controller.read().is_finished());
 
-    // window size
-    let window_size_info = use_window_size();
+    let initial_snap_info = use_context::<Signal<Option<SnapInfo>>>();
+
+    // should only write to local state once the targets are mounted
     use_effect(move || {
-        let _trigger = window_size_info.read();
-        if let Some(rect) = current_rect.peek().clone() {
-            local_drag_info.write().resize_snapped(rect);
+        if let Some(snap) = initial_snap_info() {
+            local_drag_info.write().initialize(snap);
         }
     });
-    // should only write to local state once on mount
+
     use_effect(move || {
-        if let Some(rect) = current_rect.read().clone() {
-            if local_drag_info.peek().get_is_uninitialized() {
-                local_drag_info.write().initialize(rect);
-            }
-        }
+        let grid = drag_area_grid();
+        local_drag_info.write().resize_snapped(&grid);
     });
 
     use_effect(move || {
@@ -98,11 +100,12 @@ pub fn Draggable(
                 animation_controller.write().play_now(anim);
             }
             DraggablePositionData::Rect(rect)
-                if animation_controller.peek().get_rect().is_none()
-                    || animation_controller
-                        .peek()
-                        .get_rect()
-                        .is_some_and(|controller_rect| controller_rect != rect) =>
+                if animation_controller.peek().is_finished()
+                    && (animation_controller.peek().get_rect().is_none()
+                        || animation_controller
+                            .peek()
+                            .get_rect()
+                            .is_some_and(|controller_rect| controller_rect != rect)) =>
             {
                 animation_controller.write().set_rect(rect);
                 tracing::info!("set rect to:{:?}", rect.origin);
@@ -150,7 +153,7 @@ const DRAG_HANDLE_STYLES: &str = r#"
     flex-basis: 2rem;
     flex-shrink: 0;
     flex-grow: 1;
-
+    overflow: hidden;
     display: flex;
     align-items: center;
     padding-left: .5rem;
@@ -159,13 +162,26 @@ const DRAG_HANDLE_STYLES: &str = r#"
 
 #[component]
 fn DragHandle(title: String) -> Element {
-    let global_drag_info = use_context::<Signal<GlobalDragState>>();
-    let local_drag_info = use_context::<Signal<LocalDragState>>();
+    let mut global_drag_info = use_context::<Signal<GlobalDragState>>();
+    let mut local_drag_info = use_context::<Signal<LocalDragState>>();
+
+    let mut start_drag = move |event: Event<PointerData>| {
+        let valid_drag = local_drag_info
+            .write()
+            .start_drag(event.data.element_coordinates());
+
+        if let Ok(grab_data) = valid_drag {
+            global_drag_info.write().start_drag(DragAreaActiveDragData {
+                current_pos: event.data.client_coordinates().cast_unit(),
+                starting_data: grab_data.drag_origin,
+            });
+        }
+    };
 
     rsx! {
         div {
             style: DRAG_HANDLE_STYLES,
-            onpointerdown: move |event| DraggableStateController::start_drag(event, global_drag_info, local_drag_info),
+            onpointerdown: move |event| start_drag(event),
             "{title}",
         }
     }

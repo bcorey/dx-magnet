@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::components::draggable::*;
 use dioxus::prelude::*;
@@ -19,13 +19,15 @@ const DRAG_TARGET_ACTIVE_STYLE: &str = r#"
 pub fn DragTarget(children: Element) -> Element {
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
     let mut global_drag_state = use_context::<Signal<GlobalDragState>>();
-
+    let mut drag_area_grid = use_context::<Signal<HashMap<String, Rect<f64, f64>>>>();
     let mut target_div = use_signal(|| None as Option<Rc<MountedData>>);
     let mut target_rect = use_signal(|| None as Option<Rect<f64, f64>>);
 
+    let mut initial_snap_info = use_context_provider(|| Signal::new(None as Option<SnapInfo>));
+
     let read_target_rect = move || async move {
         tracing::info!("reading target rect");
-        let read = target_div.read();
+        let read = target_div.peek();
         let client_rect = read.as_ref().map(|el| el.get_client_rect());
 
         if let Some(client_rect) = client_rect {
@@ -36,11 +38,22 @@ pub fn DragTarget(children: Element) -> Element {
         }
     };
 
+    let window_size = use_window_size();
     use_effect(move || {
+        let _winsize_trig = window_size();
+        tracing::info!("resizing target");
         let _trig = target_div.read();
         spawn(async move {
             read_target_rect().await;
         });
+    });
+
+    use_effect(move || {
+        if let Some(rect) = target_rect() {
+            tracing::info!("writing to grid {:?}", rect);
+            initial_snap_info.set(Some(SnapInfo::new(Some(id.peek().clone()), rect)));
+            drag_area_grid.write().insert(id.peek().clone(), rect);
+        }
     });
 
     let window_size = use_window_size();

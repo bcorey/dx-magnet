@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{DraggableTransitionData, DraggableTransitionMode};
 use crate::components::{DragError, DragErrorType, DraggableVariants};
 use animatable::controllers::{AnimationBuilder, AnimationControllerStatus};
@@ -6,6 +8,7 @@ use dioxus_elements::geometry::{
     euclid::{Point2D, Rect, Size2D},
     ClientSpace, ElementSpace,
 };
+use dioxus_sdk::utils::window::WindowSize;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DragAreaStates {
@@ -50,23 +53,6 @@ impl DragOrigin {
 pub struct DraggableStateController;
 
 impl DraggableStateController {
-    pub fn start_drag(
-        event: PointerEvent,
-        mut global_drag_info: Signal<GlobalDragState>,
-        mut local_drag_info: Signal<LocalDragState>,
-    ) {
-        let valid_drag = local_drag_info
-            .write()
-            .start_drag(event.data.element_coordinates());
-
-        if let Ok(grab_data) = valid_drag {
-            global_drag_info.write().start_drag(DragAreaActiveDragData {
-                current_pos: event.data.client_coordinates().cast_unit(),
-                starting_data: grab_data.drag_origin,
-            });
-        }
-    }
-
     pub fn stop_drag(mut global_drag_info: Signal<GlobalDragState>) {
         if global_drag_info.peek().is_dragging() {
             global_drag_info.write().stop_drag();
@@ -184,6 +170,7 @@ const SNAPPED_DRAGGABLE_STYLES: &str = r#"
 "#;
 
 const TRANSITIONING_DRAGGABLE_STYLES: &str = r#"
+    z-index: 5000;
 "#;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -193,9 +180,9 @@ enum DraggableStates {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct DraggableGrabData {
-    grab_point: Point2D<f64, ElementSpace>,
-    drag_origin: DragOrigin,
+pub struct DraggableGrabData {
+    pub grab_point: Point2D<f64, ElementSpace>,
+    pub drag_origin: DragOrigin,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -232,6 +219,7 @@ pub struct DraggableRenderData {
 
 #[derive(Clone, Debug)]
 pub enum DraggablePositionData {
+    Default,
     Rect(Rect<f64, f64>),
     Anim(AnimationBuilder),
 }
@@ -240,7 +228,7 @@ impl Default for DraggableRenderData {
     fn default() -> Self {
         Self {
             style: DRAGGABLE_BASE_STYLES.to_string(),
-            position_data: DraggablePositionData::Rect(Rect::zero()),
+            position_data: DraggablePositionData::Default,
         }
     }
 }
@@ -253,9 +241,14 @@ impl DraggableRenderData {
         }
     }
 
-    fn with_anim(mut self, anim: AnimationBuilder) -> Self {
-        self.position_data = DraggablePositionData::Anim(anim);
-        self
+    fn transitioning(anim: AnimationBuilder) -> Self {
+        Self {
+            style: format!(
+                "{}{}{}",
+                DRAGGABLE_BASE_STYLES, SNAPPED_DRAGGABLE_STYLES, TRANSITIONING_DRAGGABLE_STYLES
+            ),
+            position_data: DraggablePositionData::Anim(anim),
+        }
     }
 }
 
@@ -284,37 +277,47 @@ impl LocalDragState {
             DraggableStates::Resting(DraggableRestStates::Initial)
         )
     }
-    pub fn initialize(&mut self, rect: Rect<f64, f64>) {
+    pub fn initialize(&mut self, snap: SnapInfo) {
         let rest = match self.draggable_variant {
             DraggableVariants::DOCKED => {
-                DraggableRestStates::Snapped(DraggableSnapStates::Final(SnapInfo::new(None, rect)))
+                DraggableRestStates::Snapped(DraggableSnapStates::Final(snap))
             }
-            DraggableVariants::FLOATING(_) => DraggableRestStates::Released(rect),
+            DraggableVariants::FLOATING(_) => DraggableRestStates::Released(snap.rect),
         };
 
         self.drag_state = DraggableStates::Resting(rest);
     }
 
-    pub fn resize_snapped(&mut self, new_rect: Rect<f64, f64>) {
-        //tracing::info!("resizing {}", self.id);
+    pub fn resize_snapped(&mut self, grid: &HashMap<String, Rect<f64, f64>>) {
+        tracing::info!("resizing {}", self.id);
         if let DraggableStates::Resting(DraggableRestStates::Snapped(snap_state)) = &self.drag_state
         {
-            let new_snap_info = match snap_state {
-                DraggableSnapStates::Final(snap_info) => SnapInfo::new(None, new_rect),
-                DraggableSnapStates::Preview(preview_data) => SnapInfo::new(None, new_rect),
-                DraggableSnapStates::Transitioning(transition) => return,
+            let mut snap = match snap_state {
+                DraggableSnapStates::Final(snap_info) => snap_info.clone(),
+                DraggableSnapStates::Preview(preview_data) => preview_data.to.clone(),
+                DraggableSnapStates::Transitioning(_transition) => return,
             };
+            let key = match &snap.target_id {
+                Some(key) => key.clone(),
+                None => return,
+            };
+            if let Some(new_rect) = grid.get(&key) {
+                snap.rect = new_rect.clone();
+            }
             self.drag_state = DraggableStates::Resting(DraggableRestStates::Snapped(
-                DraggableSnapStates::Final(new_snap_info),
+                DraggableSnapStates::Final(snap.clone()),
             ));
             tracing::info!("resized:{:?}", self.drag_state);
+        } else {
+            tracing::error!("could not resize");
         }
     }
 
-    fn start_drag(
+    pub fn start_drag(
         &mut self,
         grab_point: Point2D<f64, ElementSpace>,
     ) -> Result<DraggableGrabData, DragError> {
+        tracing::info!("start data: {:?}", self.drag_state);
         let drag_origin = match self.drag_state.clone() {
             DraggableStates::Resting(rest) => match rest {
                 DraggableRestStates::Snapped(snap_data) => match snap_data {
@@ -355,6 +358,7 @@ impl LocalDragState {
     pub fn update_state(&mut self, global_drag_state: DragAreaStates, rect: Rect<f64, f64>) {
         let old = self.drag_state.clone();
         match (self.drag_state.clone(), global_drag_state) {
+            (DraggableStates::Resting(DraggableRestStates::Initial), _) => return,
             (
                 DraggableStates::Resting(draggable_rest_state),
                 DragAreaStates::Dragging(drag_area_dragging_state),
@@ -494,10 +498,7 @@ impl LocalDragState {
         let intersects_this_rect =
             this_rect.contains(drag_area_dragging_state.current_pos.cast_unit());
         match (draggable_rest_state.clone(), intersects_this_rect) {
-            (DraggableRestStates::Initial, _) => {
-                let snap_state = DraggableSnapStates::Final(SnapInfo::new(None, this_rect));
-                self.get_next_snap_state(snap_state, intersects_this_rect, drag_area_dragging_state)
-            }
+            (DraggableRestStates::Initial, _) => (),     // no action
             (DraggableRestStates::Released(_), _) => (), // no action
             (DraggableRestStates::Snapped(snap_state), _) => {
                 self.get_next_snap_state(
@@ -552,6 +553,7 @@ impl LocalDragState {
     ) -> DraggableRenderData {
         tracing::info!("getting render data");
         match (self.drag_state.clone(), global_drag_state.clone()) {
+            (DraggableStates::Resting(DraggableRestStates::Initial), _) => self.initial_style(),
             (DraggableStates::Grabbed(grab_data), DragAreaStates::Dragging(drag_data)) => {
                 let origin =
                     Self::origin_with_grab_offset(grab_data.grab_point, drag_data.current_pos);
@@ -574,9 +576,6 @@ impl LocalDragState {
                 DraggableStates::Resting(DraggableRestStates::Snapped(snap_state)),
                 DragAreaStates::Dragging(_),
             ) => self.get_render_data_for_avoidance_states(snap_state),
-            (DraggableStates::Resting(DraggableRestStates::Initial), DragAreaStates::Initial) => {
-                self.initial_style()
-            }
             (DraggableStates::Resting(rest_state), _) => {
                 self.get_render_data_for_resting_states(rest_state)
             }
@@ -620,7 +619,7 @@ impl LocalDragState {
                 DraggableRenderData::new(self.snapped_style(), transition.to.rect)
             }
             DraggableSnapStates::Transitioning(transition) => {
-                DraggableRenderData::default().with_anim(transition.anim)
+                DraggableRenderData::transitioning(transition.anim)
             }
         }
     }
@@ -648,14 +647,6 @@ impl LocalDragState {
 
     fn snapped_style(&self) -> String {
         format!("{}{}", DRAGGABLE_BASE_STYLES, SNAPPED_DRAGGABLE_STYLES,)
-    }
-
-    fn snapped_transitioning_style(&self) -> String {
-        format!(
-            "{} {}",
-            self.snapped_style(),
-            TRANSITIONING_DRAGGABLE_STYLES
-        )
     }
 
     fn initial_style(&self) -> DraggableRenderData {

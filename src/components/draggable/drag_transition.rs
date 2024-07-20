@@ -16,8 +16,7 @@ impl DraggableTransitionData {
         let anim = AnimationBuilder::default()
             .animate_to(to.rect)
             .with_duration(web_time::Duration::from_millis(500))
-            .with_easing(animatable::easing::Easing::BounceOut);
-        tracing::info!("new anim: {:?}", anim);
+            .with_easing(animatable::easing::Easing::QuadOut);
         Self {
             from,
             to,
@@ -28,10 +27,14 @@ impl DraggableTransitionData {
     }
 
     pub fn reverse(&self) -> DraggableTransitionData {
+        let new_anim = AnimationBuilder::default()
+            .animate_to(self.from.rect.clone())
+            .with_duration(web_time::Duration::from_millis(500))
+            .with_easing(animatable::easing::Easing::QuadOut);
         DraggableTransitionData {
             from: self.to.clone(),
             to: self.from.clone(),
-            anim: self.anim.clone(), // TODO reverse anim
+            anim: new_anim,
             mode: self.mode.reverse(),
             id: self.id.clone(),
         }
