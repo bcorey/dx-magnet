@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use super::{DraggableTransitionData, DraggableTransitionMode};
 use crate::components::{DragError, DragErrorType, DraggableVariants};
-use animatable::controllers::{AnimationBuilder, AnimationControllerStatus};
+use animatable::controllers::AnimationBuilder;
 use dioxus::prelude::*;
 use dioxus_elements::geometry::{
     euclid::{Point2D, Rect, Size2D},
-    ClientSpace, ElementSpace,
+    ElementSpace,
 };
-use dioxus_sdk::utils::window::WindowSize;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DragAreaStates {
@@ -391,8 +390,8 @@ impl LocalDragState {
         };
 
         let new = self.drag_state.clone();
-        if (old != new) {
-            tracing::info!("old: {:?} /n /n vs new: {:?}", old, new);
+        if old != new {
+            tracing::info!("old: {:?} ..... vs new: {:?}", old, new);
         }
     }
 

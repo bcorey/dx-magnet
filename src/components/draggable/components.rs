@@ -6,14 +6,11 @@ use animatable::components::Animatable;
 use animatable::controllers::AnimationController;
 use dioxus::prelude::*;
 use dioxus_elements::geometry::euclid::Rect;
-use dioxus_logger::init;
-use dioxus_sdk::utils::window::use_window_size;
 
 #[component]
 pub fn DragArea(active: bool, children: Element) -> Element {
     let mut global_drag_info = use_context_provider(|| Signal::new(GlobalDragState::new()));
-    let drag_area_grid =
-        use_context_provider(|| Signal::new(HashMap::new() as HashMap<String, Rect<f64, f64>>));
+    use_context_provider(|| Signal::new(HashMap::new() as HashMap<String, Rect<f64, f64>>));
     let style = use_memo(move || global_drag_info.read().get_drag_area_style());
 
     let mut on_pointer_move = move |event: PointerEvent| {
