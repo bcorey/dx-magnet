@@ -30,8 +30,6 @@ fn App() -> Element {
                     Draggable {
                         variant: DraggableVariants::DOCKED,
                         title: "panel 1".to_string(),
-                        Window {
-                        }
                     }
                 }
             }

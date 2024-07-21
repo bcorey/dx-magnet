@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::components::draggable::*;
 use crate::components::layout::Container;
+use crate::components::{draggable::*, Window};
 use animatable::components::Animatable;
-use animatable::controllers::AnimationController;
+use animatable::controllers::use_flipbook_signal;
 use dioxus::prelude::*;
 use dioxus_elements::geometry::euclid::Rect;
 
@@ -52,9 +52,9 @@ pub fn Draggable(
         use_context_provider(|| Signal::new(LocalDragState::new(variant, id())));
     let global_drag_info: Signal<GlobalDragState> = use_context::<Signal<GlobalDragState>>();
     let drag_area_grid = use_context::<Signal<HashMap<String, Rect<f64, f64>>>>();
-    let mut animation_controller = use_signal(|| AnimationController::default());
-    let current_rect = use_memo(move || animation_controller.read().get_rect());
-    let animation_is_active = use_memo(move || !animation_controller.read().is_finished());
+    let mut animation_controller = use_flipbook_signal();
+    let current_rect = use_memo(move || animation_controller.read().read_rect());
+    let animation_is_active = use_memo(move || !animation_controller.read().read_is_finished());
 
     let initial_snap_info = use_context::<Signal<Option<SnapInfo>>>();
 
@@ -87,7 +87,7 @@ pub fn Draggable(
     });
 
     let mut send_position_data = move |position_data: DraggablePositionData| {
-        if !animation_controller.peek().is_finished() {
+        if !animation_controller.peek().peek_is_finished() {
             return;
         }
 
@@ -97,11 +97,11 @@ pub fn Draggable(
                 animation_controller.write().play_now(anim);
             }
             DraggablePositionData::Rect(rect)
-                if animation_controller.peek().is_finished()
-                    && (animation_controller.peek().get_rect().is_none()
+                if animation_controller.peek().peek_is_finished()
+                    && (animation_controller.peek().peek_rect().is_none()
                         || animation_controller
                             .peek()
-                            .get_rect()
+                            .peek_rect()
                             .is_some_and(|controller_rect| controller_rect != rect)) =>
             {
                 animation_controller.write().set_rect(rect);
@@ -133,7 +133,10 @@ pub fn Draggable(
             DragHandle {
                 title: id,
             }
-            {children}
+            Window {
+                StateLogger{}
+                {children}
+            }
         }
     }
 }
@@ -180,6 +183,21 @@ fn DragHandle(title: String) -> Element {
             style: DRAG_HANDLE_STYLES,
             onpointerdown: move |event| start_drag(event),
             "{title}",
+        }
+    }
+}
+
+#[component]
+fn StateLogger() -> Element {
+    let local_drag_info = use_context::<Signal<LocalDragState>>();
+    let debug = use_memo(move || {
+        let state = local_drag_info.read().get_drag_state();
+        format!("{:?}", state)
+    });
+    rsx! {
+        p{
+            style: "text-align: left; font-size: .5rem;",
+            "{debug}"
         }
     }
 }

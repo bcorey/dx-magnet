@@ -173,7 +173,7 @@ const TRANSITIONING_DRAGGABLE_STYLES: &str = r#"
 "#;
 
 #[derive(Clone, Debug, PartialEq)]
-enum DraggableStates {
+pub enum DraggableStates {
     Grabbed(DraggableGrabData),
     Resting(DraggableRestStates),
 }
@@ -265,6 +265,10 @@ impl LocalDragState {
             draggable_variant: variant,
             id,
         }
+    }
+
+    pub fn get_drag_state(&self) -> DraggableStates {
+        self.drag_state.clone()
     }
 
     pub fn get_element_id(&self) -> String {
@@ -477,6 +481,7 @@ impl LocalDragState {
         };
 
         self.drag_state = DraggableStates::Resting(DraggableRestStates::Snapped(new_snap_state));
+        tracing::info!("data on other drag end:  {:?}", self.drag_state);
     }
 
     fn update_state_while_other_is_dragged(
