@@ -134,7 +134,7 @@ pub fn Draggable(
                 title: id,
             }
             Window {
-                StateLogger{}
+                //StateLogger{}
                 {children}
             }
         }
@@ -195,8 +195,8 @@ fn StateLogger() -> Element {
         format!("{:?}", state)
     });
     rsx! {
-        p{
-            style: "text-align: left; font-size: .5rem;",
+        div {
+            style: "text-align: left; font-size: .5rem; max-width: 100%; overflow: hidden; max-height: 100%;",
             "{debug}"
         }
     }

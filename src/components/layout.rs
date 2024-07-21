@@ -87,6 +87,7 @@ const WINDOW_STYLE: &str = r#"
     background-color: var(--bg);
     transition: inherit;
     height: 100%;
+    max-height: 100%;
     display: flex;
     align-items: center;
     align-content: center;

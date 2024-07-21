@@ -363,6 +363,16 @@ impl LocalDragState {
         match (self.drag_state.clone(), global_drag_state) {
             (DraggableStates::Resting(DraggableRestStates::Initial), _) => return,
             (
+                DraggableStates::Resting(DraggableRestStates::Snapped(
+                    DraggableSnapStates::Transitioning(transition),
+                )),
+                _,
+            ) => {
+                self.drag_state = DraggableStates::Resting(DraggableRestStates::Snapped(
+                    self.get_transition_end_state(transition),
+                ));
+            }
+            (
                 DraggableStates::Resting(draggable_rest_state),
                 DragAreaStates::Dragging(drag_area_dragging_state),
             ) => self.update_state_while_other_is_dragged(
@@ -382,14 +392,6 @@ impl LocalDragState {
                 drag_area_dragging_state,
                 rect,
             ),
-            (
-                DraggableStates::Resting(DraggableRestStates::Snapped(
-                    DraggableSnapStates::Transitioning(transition),
-                )),
-                _,
-            ) => {
-                self.get_transition_end_state(transition);
-            }
             (_, _) => (),
         };
 
@@ -413,7 +415,7 @@ impl LocalDragState {
                 self.get_drag_end_snap_state(snap_data, draggable_grab_data)
             }
         };
-        tracing::info!("data on drag end:  {:?}", self.drag_state);
+        tracing::info!("data on drag end: {:?} {:?}", self.id, self.drag_state);
     }
 
     fn get_drag_end_release_state(
@@ -481,7 +483,11 @@ impl LocalDragState {
         };
 
         self.drag_state = DraggableStates::Resting(DraggableRestStates::Snapped(new_snap_state));
-        tracing::info!("data on other drag end:  {:?}", self.drag_state);
+        tracing::info!(
+            "data on other drag end: {:?} {:?}",
+            self.id,
+            self.drag_state
+        );
     }
 
     fn update_state_while_other_is_dragged(
@@ -542,6 +548,7 @@ impl LocalDragState {
                 DraggableSnapStates::Transitioning(transition.reverse())
             }
             (DraggableSnapStates::Transitioning(transition), _) => {
+                tracing::info!("transition during other drag");
                 self.get_transition_end_state(transition)
             }
             (_, false) => snap_state,
