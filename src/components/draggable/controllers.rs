@@ -15,6 +15,7 @@ use dioxus_elements::geometry::{
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DraggableStates {
+    Initial,
     Grabbed(DraggableGrabData),
     Resting(DraggableRestStates),
 }
@@ -27,7 +28,6 @@ pub struct DraggableGrabData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DraggableRestStates {
-    Initial,
     Released(Rect<f64, f64>),
     Snapped(DraggableSnapStates),
 }
@@ -49,7 +49,7 @@ pub struct LocalDragState {
 impl LocalDragState {
     pub fn new(variant: DraggableVariants, id: String) -> Self {
         Self {
-            drag_state: DraggableStates::Resting(DraggableRestStates::Initial),
+            drag_state: DraggableStates::Initial,
             draggable_variant: variant,
             id,
         }
@@ -63,10 +63,7 @@ impl LocalDragState {
         self.id.clone()
     }
     pub fn get_is_uninitialized(&self) -> bool {
-        matches!(
-            self.drag_state,
-            DraggableStates::Resting(DraggableRestStates::Initial)
-        )
+        matches!(self.drag_state, DraggableStates::Initial)
     }
     pub fn initialize(&mut self, snap: SnapInfo) {
         let rest = match self.draggable_variant {
@@ -122,9 +119,6 @@ impl LocalDragState {
                     }
                 },
                 DraggableRestStates::Released(rect) => DragOrigin::Free(rect),
-                DraggableRestStates::Initial => {
-                    return Err(DragError(DragErrorType::IllegalDragStart))
-                }
             },
             _ => return Err(DragError(DragErrorType::IllegalDragStart)),
         };
@@ -149,7 +143,7 @@ impl LocalDragState {
     pub fn update_state(&mut self, global_drag_state: DragAreaStates, rect: Rect<f64, f64>) {
         let old = self.drag_state.clone();
         match (self.drag_state.clone(), global_drag_state) {
-            (DraggableStates::Resting(DraggableRestStates::Initial), _) => return,
+            (DraggableStates::Initial, _) => return,
             (
                 DraggableStates::Resting(DraggableRestStates::Snapped(
                     DraggableSnapStates::Transitioning(transition),
@@ -285,7 +279,6 @@ impl LocalDragState {
         rect: Rect<f64, f64>,
     ) {
         let this_rect = match draggable_rest_state.clone() {
-            DraggableRestStates::Initial => rect,
             DraggableRestStates::Released(rect) => rect,
             DraggableRestStates::Snapped(snap_state) => match snap_state {
                 DraggableSnapStates::Final(rect) => rect.rect,
@@ -296,7 +289,6 @@ impl LocalDragState {
         let intersects_this_rect =
             this_rect.contains(drag_area_dragging_state.current_pos.cast_unit());
         match (draggable_rest_state.clone(), intersects_this_rect) {
-            (DraggableRestStates::Initial, _) => (),     // no action
             (DraggableRestStates::Released(_), _) => (), // no action
             (DraggableRestStates::Snapped(snap_state), _) => {
                 self.get_next_snap_state(
@@ -352,9 +344,7 @@ impl LocalDragState {
     ) -> DraggableRenderData {
         tracing::info!("getting render data");
         match (self.drag_state.clone(), global_drag_state.clone()) {
-            (DraggableStates::Resting(DraggableRestStates::Initial), _) => {
-                DraggableRenderData::default()
-            }
+            (DraggableStates::Initial, _) => DraggableRenderData::default(),
             (DraggableStates::Grabbed(grab_data), DragAreaStates::Dragging(drag_data)) => {
                 let origin =
                     Self::origin_with_grab_offset(grab_data.grab_point, drag_data.current_pos);
@@ -397,7 +387,6 @@ impl LocalDragState {
         draggable_rest_state: DraggableRestStates,
     ) -> DraggableRenderData {
         match draggable_rest_state {
-            DraggableRestStates::Initial => DraggableRenderData::default(),
             DraggableRestStates::Released(release_rect) => {
                 let size = Self::get_grabbed_size();
                 DraggableRenderData::free_or_dragging(Rect::new(release_rect.origin, size))
