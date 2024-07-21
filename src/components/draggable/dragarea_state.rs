@@ -1,6 +1,6 @@
 use super::{DragOrigin, SnapInfo};
 use dioxus::prelude::*;
-use dioxus_elements::geometry::euclid::{Point2D, Rect};
+use dioxus_elements::geometry::euclid::Point2D;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DragAreaStates {
@@ -52,16 +52,11 @@ const DRAG_AREA_ACTIVE_STYLES: &str = r#"
 pub struct GlobalDragState {
     drag_state: DragAreaStates,
     snap_info: Option<SnapInfo>,
-    targets: Vec<Rect<f64, f64>>,
 }
 
 impl GlobalDragState {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn add_target(&mut self, target_rect: Rect<f64, f64>) {
-        self.targets.push(target_rect);
     }
 
     pub fn get_drag_state(&self) -> DragAreaStates {
@@ -118,7 +113,6 @@ impl Default for GlobalDragState {
         Self {
             drag_state: DragAreaStates::Initial,
             snap_info: None,
-            targets: Vec::new(),
         }
     }
 }

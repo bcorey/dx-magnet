@@ -18,3 +18,6 @@ use dragarea_state::*;
 
 mod state_utils;
 use state_utils::*;
+
+mod draggable_render_data;
+use draggable_render_data::*;
