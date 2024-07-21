@@ -46,6 +46,7 @@ pub fn Draggable(
     title: String,
     style: Option<String>,
     children: Element,
+    handle: Option<Element>,
 ) -> Element {
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
     let mut local_drag_info =
@@ -132,6 +133,7 @@ pub fn Draggable(
             style: display_state,
             DragHandle {
                 title: id,
+                {handle}
             }
             Window {
                 //StateLogger{}
@@ -161,7 +163,7 @@ const DRAG_HANDLE_STYLES: &str = r#"
 "#;
 
 #[component]
-fn DragHandle(title: String) -> Element {
+fn DragHandle(title: String, children: Element) -> Element {
     let mut global_drag_info = use_context::<Signal<GlobalDragState>>();
     let mut local_drag_info = use_context::<Signal<LocalDragState>>();
 
