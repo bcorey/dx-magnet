@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use super::{
     DragAreaActiveDragData, DragAreaStates, DragEndings, DragOrigin, DraggableTransitionData,
-    DraggableTransitionMode, SnapInfo,
+    DraggableTransitionMode, GridData, SnapInfo,
 };
 use crate::components::{
     draggable::DraggableRenderData, DragError, DragErrorType, DraggableVariants,
@@ -76,7 +74,7 @@ impl LocalDragState {
         self.drag_state = DraggableStates::Resting(rest);
     }
 
-    pub fn resize_snapped(&mut self, grid: &HashMap<String, Rect<f64, f64>>) {
+    pub fn resize_snapped(&mut self, grid: GridData) {
         tracing::info!("resizing {}", self.id);
         if let DraggableStates::Resting(DraggableRestStates::Snapped(snap_state)) = &self.drag_state
         {
@@ -85,13 +83,7 @@ impl LocalDragState {
                 DraggableSnapStates::Preview(preview_data) => preview_data.to.clone(),
                 DraggableSnapStates::Transitioning(_transition) => return,
             };
-            let key = match &snap.target_id {
-                Some(key) => key.clone(),
-                None => return,
-            };
-            if let Some(new_rect) = grid.get(&key) {
-                snap.rect = new_rect.clone();
-            }
+            snap.rect = grid.get_new_child_rect(snap.rect);
             self.drag_state = DraggableStates::Resting(DraggableRestStates::Snapped(
                 DraggableSnapStates::Final(snap.clone()),
             ));

@@ -1,25 +1,23 @@
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use crate::components::draggable::*;
 use dioxus::prelude::*;
 use dioxus_elements::geometry::euclid::Rect;
-use dioxus_sdk::utils::window::use_window_size;
 
-const DRAG_TARGET_STYLE: &str = r#"
+const DRAG_TARGET_STYLE: &str = "
     width: 100%;
     height: 100%;
-"#;
+";
 
-const DRAG_TARGET_ACTIVE_STYLE: &str = r#"
+const DRAG_TARGET_ACTIVE_STYLE: &str = "
     background-color: var(--bg);
     background-image: repeating-linear-gradient(50deg, var(--fg), var(--fg) .05rem, transparent .01rem, transparent .4rem);
-"#;
+";
 
 #[component]
 pub fn DragTarget(children: Element) -> Element {
     let id = use_signal(|| uuid::Uuid::new_v4().to_string());
     let mut global_drag_state = use_context::<Signal<GlobalDragState>>();
-    let mut drag_area_grid = use_context::<Signal<HashMap<String, Rect<f64, f64>>>>();
     let mut target_div = use_signal(|| None as Option<Rc<MountedData>>);
     let mut target_rect = use_signal(|| None as Option<Rect<f64, f64>>);
 
@@ -33,15 +31,12 @@ pub fn DragTarget(children: Element) -> Element {
         if let Some(client_rect) = client_rect {
             if let Ok(rect) = client_rect.await {
                 tracing::info!("setting target rect");
-                target_rect.set(Some(rect));
+                target_rect.set(Some(rect.cast_unit()));
             }
         }
     };
 
-    let window_size = use_window_size();
     use_effect(move || {
-        let _winsize_trig = window_size();
-        tracing::info!("resizing target");
         let _trig = target_div.read();
         spawn(async move {
             read_target_rect().await;
@@ -50,18 +45,8 @@ pub fn DragTarget(children: Element) -> Element {
 
     use_effect(move || {
         if let Some(rect) = target_rect() {
-            tracing::info!("writing to grid {:?}", rect);
             initial_snap_info.set(Some(SnapInfo::new(Some(id.peek().clone()), rect)));
-            drag_area_grid.write().insert(id.peek().clone(), rect);
         }
-    });
-
-    let window_size = use_window_size();
-    use_effect(move || {
-        let _trigger = window_size.read();
-        spawn(async move {
-            read_target_rect().await;
-        });
     });
 
     let target_is_active = use_memo(move || {

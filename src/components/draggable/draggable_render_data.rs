@@ -2,31 +2,32 @@ use animatable::controllers::AnimationBuilder;
 use dioxus::prelude::*;
 use dioxus_elements::geometry::euclid::Rect;
 
-const DRAGGABLE_BASE_STYLES: &str = r#"
+const DRAGGABLE_BASE_STYLES: &str = "
     display: flex;
     flex-flow: column;
     flex-direction: column;
     height: 100%;
     align-content: flex-start;
-"#;
+";
 
-const DRAGGABLE_DRAG_STYLES: &str = r#"
+const DRAGGABLE_DRAG_STYLES: &str = "
     position: absolute;
     background-color: var(--accent_0);
     z-index: 10000;
     width: 180px;
     height: 200px;
     box-shadow: .4rem .3rem var(--hint);
-"#;
+";
 
-const SNAPPED_DRAGGABLE_STYLES: &str = r#"
+const SNAPPED_DRAGGABLE_STYLES: &str = "
+    position: absolute;
     box-shadow: 0 0 solid var(--hint);
     z-index: 100;
-"#;
+";
 
-const TRANSITIONING_DRAGGABLE_STYLES: &str = r#"
+const TRANSITIONING_DRAGGABLE_STYLES: &str = "
     z-index: 5000;
-"#;
+";
 
 #[derive(Clone, Debug)]
 pub struct DraggableRenderData {

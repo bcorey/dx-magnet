@@ -36,17 +36,17 @@ impl DraggableStateController {
     }
 }
 
-const DRAG_AREA_BASE_STYLES: &str = r#"
+const DRAG_AREA_BASE_STYLES: &str = "
     background-image: radial-gradient(black .05rem, transparent 0);
     background-size: .6rem .6rem;
     width: 100%;
     height: 100%;
-"#;
+";
 
-const DRAG_AREA_ACTIVE_STYLES: &str = r#"
+const DRAG_AREA_ACTIVE_STYLES: &str = "
     -webkit-user-select: none;
     user-select: none;
-"#;
+";
 
 #[derive(Clone)]
 pub struct GlobalDragState {

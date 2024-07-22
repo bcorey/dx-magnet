@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-const CONTAINER_STYLE: &str = r#"
+const CONTAINER_STYLE: &str = "
     width: 100%;
     height: 100%;
     padding: 0;
@@ -10,7 +10,7 @@ const CONTAINER_STYLE: &str = r#"
     position: absolute;
     top: 0;
     left: 0;
-"#;
+";
 
 #[component]
 pub fn Container(columns: Option<u64>, rows: Option<u64>, children: Element) -> Element {
@@ -32,18 +32,18 @@ pub fn Container(columns: Option<u64>, rows: Option<u64>, children: Element) -> 
     rsx! {
         div {
             style: style,
-            {children},
+            {children}
         }
     }
 }
 
-const CELL_STYLE: &str = r#"
+const CELL_STYLE: &str = "
     height: 100%;
     padding: 0;
     margin: 0;
     box-sizing: border-box;
     display: grid;
-"#;
+";
 
 #[component]
 pub fn Cell(
@@ -79,7 +79,7 @@ pub fn Cell(
     }
 }
 
-const WINDOW_STYLE: &str = r#"
+const WINDOW_STYLE: &str = "
     position: relative;
     border: 0.05rem solid var(--fg);
     padding-top: 1rem;
@@ -94,17 +94,15 @@ const WINDOW_STYLE: &str = r#"
     text-align: center;
     flex-flow: column;
     border-radius: inherit;
-"#;
-
-const HIGHEST_Z_PRIORITY: &str = r#"z-index: 1000;"#;
+";
 
 #[component]
 pub fn Window(children: Element) -> Element {
-    let style = format!("{}\n{}", WINDOW_STYLE, HIGHEST_Z_PRIORITY);
+    let style = WINDOW_STYLE.to_string();
     rsx! {
         div {
             style: style,
-            {children},
+            {children}
         }
     }
 }

@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-const BUTTON_STYLES: &str = r#"
+const BUTTON_STYLES: &str = "
     font-family: inherit;
     font-size: inherit;
     max-height: min-content;
@@ -16,14 +16,14 @@ const BUTTON_STYLES: &str = r#"
     color: var(--fg);
     box-shadow: .3rem .2rem 0 0 var(--hint);
     border-radius: 0;
-"#;
+";
 
 #[component]
 pub fn Button(name: String) -> Element {
     rsx! {
         button {
             style: BUTTON_STYLES,
-            "{name}",
+            "{name}"
         }
     }
 }
