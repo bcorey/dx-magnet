@@ -1,6 +1,6 @@
-use animatable::controllers::AnimationBuilder;
 use dioxus::prelude::*;
 use dioxus_elements::geometry::euclid::Rect;
+use dx_flipbook::controllers::AnimationBuilder;
 
 const DRAGGABLE_BASE_STYLES: &str = "
     display: flex;

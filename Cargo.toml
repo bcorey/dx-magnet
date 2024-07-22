@@ -1,5 +1,5 @@
 [package]
-name = "gridline"
+name = "dx-magnet"
 version = "0.1.0"
 authors = ["bcorey <benjaminmcorey@gmail.com>"]
 edition = "2021"
@@ -20,7 +20,7 @@ uuid = { version = "1.8.0", features = ["v4", "js"] }
 #dioxus-sdk = { git = "https://github.com/DioxusLabs/sdk", features = ["window_size"]}
 dioxus-sdk = { path = "../sdk/sdk", features = ["window_size"]}
 web-time = "1.1.0"
-animatable = { path = "../animatable" }
+dx-flipbook = { path = "../dx-flipbook" }
 
 [dependencies.web-sys]
 version = "0.3.69"

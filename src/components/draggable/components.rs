@@ -2,10 +2,10 @@ use std::rc::Rc;
 
 use crate::components::layout::Container;
 use crate::components::{draggable::*, Window};
-use animatable::components::Animatable;
-use animatable::controllers::use_flipbook_signal;
 use dioxus::prelude::*;
 use dioxus_elements::geometry::euclid::Rect;
+use dx_flipbook::components::Animatable;
+use dx_flipbook::hooks::use_flipbook_signal;
 
 const DRAG_AREA_COLUMNS: u8 = 8u8;
 const DRAG_AREA_ROWS: u8 = 2u8;

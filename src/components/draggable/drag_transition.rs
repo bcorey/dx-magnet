@@ -1,4 +1,4 @@
-use animatable::controllers::AnimationBuilder;
+use dx_flipbook::controllers::AnimationBuilder;
 
 use super::SnapInfo;
 
@@ -16,7 +16,7 @@ impl DraggableTransitionData {
         let anim = AnimationBuilder::default()
             .animate_to(to.rect)
             .with_duration(web_time::Duration::from_millis(500))
-            .with_easing(animatable::easing::Easing::QuadOut);
+            .with_easing(dx_flipbook::easing::Easing::QuadOut);
         Self {
             from,
             to,
@@ -30,7 +30,7 @@ impl DraggableTransitionData {
         let new_anim = AnimationBuilder::default()
             .animate_to(self.from.rect.clone())
             .with_duration(web_time::Duration::from_millis(500))
-            .with_easing(animatable::easing::Easing::QuadOut);
+            .with_easing(dx_flipbook::easing::Easing::QuadOut);
         DraggableTransitionData {
             from: self.to.clone(),
             to: self.from.clone(),

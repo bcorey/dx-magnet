@@ -3,7 +3,7 @@
 use dioxus::prelude::*;
 use tracing::Level;
 
-use gridline::components::*;
+use dx_magnet::components::*;
 
 fn main() {
     // Init logger

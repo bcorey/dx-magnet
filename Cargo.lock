@@ -45,20 +45,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 
 [[package]]
-name = "animatable"
-version = "0.1.0"
-dependencies = [
- "dioxus",
- "dioxus-logger",
- "dioxus-sdk 0.5.0 (git+https://github.com/DioxusLabs/sdk.git)",
- "futures-util",
- "gloo-timers 0.3.0",
- "simple-easing",
- "tracing",
- "web-time",
-]
-
-[[package]]
 name = "anymap2"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1102,21 +1088,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dioxus-sdk"
-version = "0.5.0"
-source = "git+https://github.com/DioxusLabs/sdk.git#fa662f734cc2d0f59ca85da0072c067b3a46df3e"
-dependencies = [
- "cfg-if",
- "dioxus",
- "futures",
- "gloo-timers 0.3.0",
- "js-sys",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "dioxus-signals"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1219,6 +1190,33 @@ name = "dunce"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56ce8c6da7551ec6c462cbaf3bfbc75131ebbfa1c944aeaa9dab51ca1c5f0c3b"
+
+[[package]]
+name = "dx-flipbook"
+version = "0.1.0"
+dependencies = [
+ "dioxus",
+ "dioxus-logger",
+ "futures-util",
+ "gloo-timers 0.3.0",
+ "simple-easing",
+ "tracing",
+ "web-time",
+]
+
+[[package]]
+name = "dx-magnet"
+version = "0.1.0"
+dependencies = [
+ "dioxus",
+ "dioxus-logger",
+ "dioxus-sdk",
+ "dx-flipbook",
+ "tracing",
+ "uuid",
+ "web-sys",
+ "web-time",
+]
 
 [[package]]
 name = "endi"
@@ -1984,20 +1982,6 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
-]
-
-[[package]]
-name = "gridline"
-version = "0.1.0"
-dependencies = [
- "animatable",
- "dioxus",
- "dioxus-logger",
- "dioxus-sdk 0.5.0",
- "tracing",
- "uuid",
- "web-sys",
- "web-time",
 ]
 
 [[package]]
